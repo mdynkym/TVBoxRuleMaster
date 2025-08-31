@@ -67,8 +67,16 @@ class EditController extends BaseController {
         if ($api === 'csp_XYQHiker'){
             return $this->display('Edit/XYQHiker');
         }
+        if ($api === 'csp_XBPQ'){
+            return $this->display('Edit/XBPQ');
+        }
 
-        if (in_array($file_extension, ['json', 'js', 'py', 'php']) || $api === 'editor') {
+        if (strpos($api, 'csp_XPath') !== false) {
+            return $this->display('Edit/Xpath');
+        }
+
+        
+        if (in_array($file_extension, ['json', 'js', 'py', 'php', 'txt']) || $api === 'editor') {
             $this->assign('file_extension', $file_extension);
             return $this->display('Edit/editor');
         }

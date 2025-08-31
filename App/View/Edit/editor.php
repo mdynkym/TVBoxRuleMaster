@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>正在编辑 - <?php echo isset($_GET['file']) ? htmlspecialchars(basename($_GET['file'])) : 'N/A'; ?></title>
     <link rel="stylesheet" href="/assets/css/ui.css?t=<?php echo time();?>">
+    <link rel="icon" type="image/png" href="/assets/img/ico.png">
     <style>
         html, body {
             margin: 0;

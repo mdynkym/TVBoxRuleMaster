@@ -1,13 +1,26 @@
- /**
+/**
  * --------------------------------------------------------------------
- * @description 通用组件。
- * @author      https://t.me/CCfork
- * @copyright   Copyright (c) 2025, https://t.me/CCfork
+ * @description     通用组件库，包含UI组件、数据处理、本地存储、表单渲染等可复用函数。
+ * @author          https://t.me/CCfork
+ * @copyright       Copyright (c) 2025, https://t.me/CCfork
  * --------------------------------------------------------------------
  */
 
 /**
- * 切换标签页显示
+ * @description 移动设备 User-Agent
+ */
+const MOBILE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1';
+
+/**
+ * @description 个人电脑 User-Agent
+ */
+const PC_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36';
+
+
+/**
+ * @description 切换标签页的显示状态。
+ * @param {Event} evt - 触发事件的对象。
+ * @param {string} tabId - 需要显示的目标标签内容区的ID。
  */
 function openTab(evt, tabId) {
     const clickedButton = evt.currentTarget;
@@ -20,7 +33,7 @@ function openTab(evt, tabId) {
     const contentParent = buttonContainer.parentElement;
     const contentClass = clickedButton.classList[0].replace('-btn', '-content');
     if (contentParent) {
-        contentParent.querySelectorAll(`:scope > .${contentClass}`).forEach(content => {
+        contentParent.querySelectorAll(`.${contentClass}`).forEach(content => {
             content.style.display = 'none';
             content.classList.remove('active');
         });
@@ -49,9 +62,10 @@ function openTab(evt, tabId) {
     }
 }
 
-
 /**
- * 显示一个短暂的通知消息 (Toast)。
+ * @description 显示一个短暂的通知消息 (Toast)。
+ * @param {string} message - 要显示的消息内容。
+ * @param {string} [type=''] - 消息类型 ('success', 'error', 'info')，用于样式控制。
  */
 function showToast(message, type = '') {
     let toastContainer = document.querySelector('.toast-container');
@@ -74,11 +88,13 @@ function showToast(message, type = '') {
     }, 3000);
 }
 
-
-const activeModals = {}; // 存放弹窗实例
+/**
+ * @description 用于存放活动模态窗口实例的全局对象。
+ */
+const activeModals = {};
 
 /**
- * 通用模态弹窗类 (Modal Class)
+ * @description 通用模态弹窗类 (Modal Class)，基于 WinBox.js 进行封装。
  */
 class Modal {
     constructor(options) {
@@ -115,7 +131,7 @@ class Modal {
             this.winboxInstance.focus();
             return this;
         }
-        document.body.classList.add('body-lock-scroll');
+        lockScroll(['.main-header', '#scrollToTopBtn']);
         let controlClasses = [];
         if (!this.options.showMax) controlClasses.push('no-max');
         if (!this.options.showMin) controlClasses.push('no-min');
@@ -131,7 +147,7 @@ class Modal {
             height: this.isMobile ? '100%' : this.options.height,
             resize: this.isMobile ? false : this.options.resizable,
             onclose: () => {
-                document.body.classList.remove('body-lock-scroll');
+                unlockScroll(['.main-header', '#scrollToTopBtn']);
 
                 if (this.isMobile) {
                     window.removeEventListener('resize', this.resizeHandler);
@@ -188,7 +204,8 @@ class Modal {
 }
 
 /**
- * @description 通过ID关闭一个WinBox窗口
+ * @description 通过ID关闭一个WinBox窗口。
+ * @param {string} id - WinBox实例的ID。
  */
 function closeModalById(id) {
     const modalInstance = activeModals[id];
@@ -211,7 +228,7 @@ function showDialog(options) {
     }, options);
 
     return new Promise((resolve, reject) => {
-        document.body.classList.add('body-lock-scroll');
+        lockScroll(['.main-header', '#scrollToTopBtn']);
         const overlay = document.createElement('div');
         overlay.className = 'dialog-overlay';
 
@@ -244,7 +261,7 @@ function showDialog(options) {
         const cancelBtn = overlay.querySelector('.cancel-btn');
 
         const closeDialog = (reason) => {
-            document.body.classList.remove('body-lock-scroll');
+            unlockScroll(['.main-header', '#scrollToTopBtn']);
             overlay.classList.remove('visible');
             const handleTransitionEnd = () => {
                 overlay.removeEventListener('transitionend', handleTransitionEnd);
@@ -288,7 +305,7 @@ function showDialog(options) {
 function setupSaveShortcut(onSave) {
     document.addEventListener('keydown', (event) => {
         if (event.ctrlKey && event.key === 's') {
-            event.preventDefault(); // 阻止浏览器默认的“保存网页”行为
+            event.preventDefault(); /** 阻止浏览器默认的“保存网页”行为 */
             if (typeof onSave === 'function') {
                 onSave();
             }
@@ -297,7 +314,7 @@ function setupSaveShortcut(onSave) {
 }
 
 /**
- * 计算字符串的MD5哈希值。
+ * @description 计算字符串的MD5哈希值。
  * @param {string} string - 需要进行哈希计算的原始字符串。
  * @param {object} [options={}] - 一个可选的配置对象。
  * @param {boolean} [options.pretty=false] - 如果为 true，则将输出格式化为大写，并每8个字符用连字符(-)分隔。
@@ -476,7 +493,7 @@ function md5(string, options = {}) {
 }
 
 /**
- * 平滑地将页面滚动到顶部。
+ * @description 平滑地将页面滚动到顶部。
  */
 function scrollToTop() {
     window.scrollTo({
@@ -484,7 +501,6 @@ function scrollToTop() {
         behavior: 'smooth'
     });
 }
-
 document.addEventListener('DOMContentLoaded', () => {
     const scrollTopBtn = document.getElementById('scrollToTopBtn');
     if (!scrollTopBtn) return;
@@ -499,3 +515,537 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, { passive: true });
 });
+
+/**
+ * @description 编译并渲染 Handlebars 模板。
+ * @param {string} templateId - 模板的 script 标签ID。
+ * @param {object} [data={}] - 渲染模板所需的数据对象。
+ * @returns {string} 渲染后的HTML字符串，如果模板未找到则返回空字符串。
+ */
+function renderTemplate(templateId, data = {}) {
+    const source = document.getElementById(templateId)?.innerHTML;
+    if (!source) {
+        console.error(`Template with ID '${templateId}' not found.`);
+        return '';
+    }
+    const template = Handlebars.compile(source);
+    return template(data);
+}
+
+/**
+ * @description 从表单中收集所有数据并组装成一个JSON对象。
+ * @param {string} formId - 目标表单的ID。
+ * @returns {object} 包含所有表单数据的对象。
+ */
+function collectFormDataIntoJson(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return {};
+
+    const inputs = form.querySelectorAll('input, textarea');
+    const data = {};
+
+    inputs.forEach(input => {
+        if (input.id && input.value) {
+            /** 对于ID为'筛选数据'的特殊处理，尝试解析为JSON对象 */
+            if (input.id === '筛选数据') {
+                try {
+                    data[input.id] = JSON.parse(input.value);
+                } catch (e) {
+                    data[input.id] = input.value; /** 解析失败则存为字符串 */
+                }
+            } else {
+                data[input.id] = input.value;
+            }
+        }
+    });
+    
+    return data;
+}
+
+/**
+ * @description 将当前表单数据保存到localStorage。
+ * @param {string} formSelector - 目标表单的CSS选择器。
+ * @param {string} storageKey - 用于保存在localStorage中的键名。
+ */
+function saveFormData(formSelector, storageKey) {
+    const formInputs = document.querySelectorAll(`${formSelector} input, ${formSelector} textarea`);
+    const formData = {};
+    formInputs.forEach(input => {
+        if (input.id) {
+            formData[input.id] = input.value;
+        }
+    });
+    localStorage.setItem(storageKey, JSON.stringify(formData));
+}
+
+/**
+ * @description 从localStorage加载并填充表单数据。
+ * @param {string} formSelector - 目标表单的CSS选择器。
+ * @param {string} storageKey - 用于从localStorage中读取的键名。
+ */
+function loadFormData(formSelector, storageKey) {
+    const savedData = localStorage.getItem(storageKey);
+    if (savedData) {
+        try {
+            const formData = JSON.parse(savedData);
+            for (const key in formData) {
+                const input = document.querySelector(`${formSelector} #${key}`);
+                if (input) {
+                    input.value = formData[key];
+                }
+            }
+        } catch (e) {
+            console.error('加载本地表单数据失败:', e);
+        }
+    }
+}
+
+/**
+ * @description 使用给定的数据对象填充表单字段。
+ * @param {object} data - 包含键值对的数据对象，键名应与表单元素的ID匹配。
+ */
+function fillForm(data) {
+    for (const key in data) {
+        const input = document.getElementById(key);
+        if (input) {
+            if (typeof data[key] === 'object' && data[key] !== null) {
+                input.value = JSON.stringify(data[key], null, 2);
+            } else {
+                input.value = data[key];
+            }
+        }
+    }
+}
+
+/**
+ * @description 解析特定格式的请求头参数字符串。
+ * @param {string} headerString - 格式化的请求头字符串 (例如: 'User-Agent$电脑#Referer$http://...')
+ * @returns {object} 解析后的请求头对象。
+ */
+function parseHeaders(headerString) {
+    const headers = {};
+    if (!headerString) return headers;
+    const trimmed = headerString.trim();
+    if (trimmed === '手机' || trimmed === 'MOBILE_UA') {
+        headers['User-Agent'] = MOBILE_UA;
+        return headers;
+    }
+    if (trimmed === '电脑' || trimmed === 'PC_UA') {
+        headers['User-Agent'] = PC_UA;
+        return headers;
+    }
+    const pairs = trimmed.split('#');
+    pairs.forEach(pair => {
+        if (pair.includes('$')) {
+            const parts = pair.split('$');
+            const key = parts.shift().trim();
+            const value = parts.join('$').trim();
+            if (key && value) {
+                headers[key] = value;
+            }
+        }
+    });
+    return headers;
+}
+
+/**
+ * @description 解析资源路径，移除md5等后缀。
+ * @param {string} pathStr - 原始路径字符串 (例如: './libs/drpy.js;md5;f6899548d867389a19c36394595a8898')
+ * @returns {string|null} 解析后的路径 (例如: './libs/drpy.js')
+ */
+function parseAssetPath(pathStr) {
+    if (!pathStr || typeof pathStr !== 'string') return null;
+    return pathStr.split(';')[0];
+}
+
+/**
+ * @description 获取URL的基础路径 (即最后一个'/'之前的所有部分)。
+ * @param {string} url - 完整的URL地址。
+ * @returns {string} URL的基础路径。
+ */
+function getBaseUrl(url) {
+    const lastSlash = url.lastIndexOf('/');
+    return url.substring(0, lastSlash + 1);
+}
+
+/**
+ * @description 从localStorage安全地获取并解析一个JSON项。
+ * @param {string} key - localStorage中的键名。
+ * @param {*} [defaultValue=[]] - 如果项不存在或解析失败时返回的默认值。
+ * @returns {*} 解析后的对象或默认值。
+ */
+function getLocalStorageItem(key, defaultValue = []) {
+    try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : defaultValue;
+    } catch (e) {
+        console.error(`从localStorage读取 '${key}' 失败:`, e);
+        return defaultValue;
+    }
+}
+
+/**
+ * @description 更新localStorage中的历史记录数组 (确保唯一性并限制长度)。
+ * @param {string} key - localStorage中的键名。
+ * @param {string} newItem - 要添加的新项目。
+ * @param {number} [maxSize=20] - 历史记录的最大长度。
+ */
+function updateLocalStorageHistory(key, newItem, maxSize = 20) {
+    let history = getLocalStorageItem(key, []);
+    history = history.filter(item => item !== newItem);
+    history.unshift(newItem);
+    if (history.length > maxSize) {
+        history.pop();
+    }
+    localStorage.setItem(key, JSON.stringify(history));
+}
+
+/**
+ * @description 在一个嵌套的数据结构中，根据ID查找字段的定义。
+ * @param {object} fieldsData - 包含字段定义的数据对象。
+ * @param {string} fieldId - 要查找的字段ID。
+ * @returns {object|null} 找到的字段定义对象，或null。
+ */
+function findFieldDefinition(fieldsData, fieldId) {
+    for (const key in fieldsData) {
+        const data = fieldsData[key];
+        let fields = [];
+
+        if (Array.isArray(data)) {
+            fields = data;
+        } else if (typeof data === 'object' && data !== null) {
+            /** 兼容 'category' 这种特殊结构 */
+            if (data.rules) fields.push(...data.rules);
+            if (data.filters) fields.push(...data.filters);
+        }
+
+        const found = fields.find(field => field.id === fieldId);
+        if (found) {
+            return found;
+        }
+    }
+    return null;
+}
+
+/**
+ * @description 将一组字段配置动态渲染到指定的容器元素中，并附加交互。
+ * @param {string|HTMLElement} containerOrId - 目标容器的ID或DOM元素。
+ * @param {Array<object>} fields - 要渲染的字段定义数组。
+ */
+function renderFormFields(containerOrId, fields) {
+    const container = typeof containerOrId === 'string' 
+        ? document.getElementById(containerOrId) 
+        : containerOrId;
+
+    if (!container) {
+        console.error('无法找到用于渲染表单字段的容器:', containerOrId);
+        return;
+    }
+
+    container.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+
+    fields.forEach(field => {
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
+        if (field.isAdvanced) {
+            formGroup.classList.add('advanced-field');
+        }
+
+        const label = document.createElement('label');
+        label.setAttribute('for', field.id);
+        label.innerText = field.key;
+        label.title = field.desc || field.key;
+        fragment.appendChild(label);
+
+        const inputWrapper = document.createElement('div');
+        inputWrapper.className = 'input-with-buttons';
+
+        const input = field.type === 'textarea' 
+            ? document.createElement('textarea') 
+            : document.createElement('input');
+        input.type = field.type || 'text';
+        input.id = field.id;
+        input.name = field.id;
+        if (field.placeholder) {
+            input.placeholder = field.placeholder;
+        }
+        inputWrapper.appendChild(input);
+
+        /** @description 动态创建按钮并绑定回调 */
+        if (Array.isArray(field.buttons)) {
+            field.buttons.forEach(btnConfig => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = btnConfig.className || 'btn secondary-btn btn-sm';
+                button.innerText = btnConfig.label;
+                button.addEventListener('click', () => {
+                    if (typeof btnConfig.onClick === 'function') {
+                        /** 将字段ID和完整定义作为参数传给回调 */
+                        btnConfig.onClick(field.id, field);
+                    }
+                });
+                inputWrapper.appendChild(button);
+            });
+        }
+        
+        formGroup.appendChild(inputWrapper);
+        fragment.appendChild(formGroup);
+    });
+
+    container.appendChild(fragment);
+}
+
+/**
+ * @description GitHub加速代理的处理
+ * @param {string} url 原始URL
+ * @returns {string} 处理过的URL
+ */
+function applyGitHubProxy(url) {
+    if (typeof url !== 'string') {
+        return url;
+    }
+
+    const proxy = localStorage.getItem('githubProxyUrl') || '';
+    const githubIdentifier = 'https://raw.githubusercontent.com/';
+
+    const githubIndex = url.indexOf(githubIdentifier);
+
+    if (githubIndex === -1) {
+        return url;
+    }
+
+    const githubPart = url.substring(githubIndex);
+
+    if (proxy) {
+        const cleanProxy = proxy.replace(/\/$/, ''); // 清理末尾的 /
+        return cleanProxy + '/' + githubPart;
+    } else {
+        return githubPart;
+    }
+}
+
+/**
+ * @description 安全地清理并解析包含注释的JSON字符串 (JSONC)。
+ * 此函数能够正确处理行注释(//, #)、块注释(/*...* /)
+ * 并能忽略字符串常量中出现的注释标记。
+ * @param {string} content - 原始的、可能包含注释的JSON字符串。
+ * @returns {object} 解析后的JavaScript对象。
+ */
+function parseCleanJson(content) {
+    if (typeof content !== 'string') {
+        throw new Error("Invalid input: content must be a string.");
+    }
+
+    const len = content.length;
+    let cleanedJson = '';
+    let inString = false;
+    let inSingleLineComment = false;
+    let inMultiLineComment = false;
+
+    for (let i = 0; i < len; i++) {
+        const char = content[i];
+        const nextChar = i + 1 < len ? content[i + 1] : '';
+
+        // 如果在单行注释中，遇到换行符则结束注释
+        if (inSingleLineComment) {
+            if (char === '\n' || char === '\r') {
+                inSingleLineComment = false;
+                cleanedJson += char; // 保留换行符以维持行号
+            }
+            continue;
+        }
+
+        // 如果在多行注释中，遇到 */ 则结束注释
+        if (inMultiLineComment) {
+            if (char === '*' && nextChar === '/') {
+                inMultiLineComment = false;
+                i++; // 跳过 '/'
+            }
+            continue;
+        }
+
+        // 切换字符串状态
+        if (char === '"') {
+            // 检查是否是转义的引号
+            if (!inString || (inString && content[i - 1] !== '\\')) {
+                 inString = !inString;
+            }
+        }
+
+        // 如果不在字符串中，则检查注释的开始
+        if (!inString) {
+            // 检查单行注释 // 或 #
+            if ((char === '/' && nextChar === '/') || char === '#') {
+                inSingleLineComment = true;
+                i += (char === '/' ? 1 : 0); // 如果是 //, 跳过第二个 /
+                continue;
+            }
+            // 检查多行注释 /*
+            if (char === '/' && nextChar === '*') {
+                inMultiLineComment = true;
+                i++; // 跳过 '*'
+                continue;
+            }
+        }
+
+        cleanedJson += char;
+    }
+
+    // 移除尾随逗号
+    const finalJson = cleanedJson.replace(/,\s*([}\]])/g, '$1');
+
+    try {
+        return JSON.parse(finalJson);
+    } catch (error) {
+        // 提供更详细的错误信息
+        console.error("Failed to parse cleaned JSON content:", finalJson);
+        throw new Error(`JSON parsing error: ${error.message}`);
+    }
+}
+
+/**
+ * 锁定body滚动，并处理固定定位元素的偏移问题
+ * @param {string[]} [fixedElementSelectors=[]] - 需要一并处理的固定定位元素的选择器数组
+ */
+function lockScroll(fixedElementSelectors = []) {
+    const body = document.body;
+    
+    if (body.scrollHeight > window.innerHeight) {
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+        body.style.paddingRight = `${scrollbarWidth}px`;
+        if (fixedElementSelectors.length > 0) {
+            document.querySelectorAll(fixedElementSelectors.join(', ')).forEach(el => {
+                el.style.paddingRight = `${scrollbarWidth}px`;
+            });
+        }
+    }
+
+    body.classList.add('body-lock-scroll');
+}
+
+/**
+ * 解锁body滚动，并恢复固定定位元素
+ * @param {string[]} [fixedElementSelectors=[]] - 需要一并处理的固定定位元素的选择器数组
+ */
+function unlockScroll(fixedElementSelectors = []) {
+    const body = document.body;
+    
+    body.style.paddingRight = '';
+    if (fixedElementSelectors.length > 0) {
+        document.querySelectorAll(fixedElementSelectors.join(', ')).forEach(el => {
+            el.style.paddingRight = '';
+        });
+    }
+    
+    body.classList.remove('body-lock-scroll');
+}
+
+/**
+ * @description 初始化所有下拉按钮组件, 并智能处理其展开方向 (向上或向下).
+ */
+function initDropdowns() {
+    document.addEventListener('click', function(e) {
+        const isDropdownButton = e.target.closest('[data-toggle="dropdown"]');
+        const dropdown = isDropdownButton ? isDropdownButton.closest('.dropdown') : null;
+
+        document.querySelectorAll('.dropdown-menu.active').forEach(menu => {
+            const currentDropdown = menu.closest('.dropdown');
+            if (currentDropdown !== dropdown) {
+                menu.classList.remove('active');
+                currentDropdown.classList.remove('dropup');
+            }
+        });
+
+        if (dropdown) {
+            const menu = dropdown.querySelector('.dropdown-menu');
+            if (menu) {
+                const wasActive = menu.classList.contains('active');
+                menu.classList.toggle('active'); // 切换当前点击菜单的 active 状态
+
+                if (!wasActive) {
+                    handleDropdownPositioning(dropdown, menu);
+                } else {
+                    dropdown.classList.remove('dropup');
+                }
+            }
+        }
+    });
+
+    /**
+     * @description 自动处理下拉菜单的展开方向 (此为内部函数)
+     * @param {HTMLElement} dropdown - .dropdown 容器元素
+     * @param {HTMLElement} menu - .dropdown-menu 菜单元素
+     */
+    function handleDropdownPositioning(dropdown, menu) {
+        requestAnimationFrame(() => {
+            const boundary = dropdown.closest('.modal-main-content') || document.documentElement;
+            const menuRect = menu.getBoundingClientRect();
+            const boundaryRect = boundary.getBoundingClientRect();
+            const isOverflowing = menuRect.bottom > (boundaryRect.bottom - 5);
+
+            if (isOverflowing) {
+                const toggle = dropdown.querySelector('[data-toggle="dropdown"]');
+                const toggleRect = toggle.getBoundingClientRect();
+                                const spaceAbove = toggleRect.top - boundaryRect.top;
+                
+                if (spaceAbove >= menu.offsetHeight) {
+                    dropdown.classList.add('dropup');
+                } else {
+                    dropdown.classList.remove('dropup');
+                }
+            } else {
+                dropdown.classList.remove('dropup');
+            }
+        });
+    }
+}
+
+/**
+ * @description 安全地解码包含UTF-8字符的Base64字符串
+ * @param {string} base64 - Base64编码的字符串
+ * @returns {string} 解码后的UTF-8字符串
+ */
+function decodeBase64Utf8(base64) {
+    try {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return new TextDecoder('utf-8').decode(bytes);
+    } catch (e) {
+        console.error("Base64 decoding failed:", e);
+        return "{}"; 
+    }
+}
+
+/**
+ * @description 获取格式化为 YYYY-MM-DD HH:mm:ss 的本地时间字符串
+ * @returns {string} 格式化后的本地时间
+ */
+function getFormattedLocalTime() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * @description 从本地存储加载变量
+ */
+function loadVariables() {
+    const savedData = localStorage.getItem('global_variables');
+    if (savedData) {
+        try {
+            window.loadVariables = JSON.parse(savedData);
+        } catch(e) {
+            window.loadVariables = {};
+        }
+    }
+}

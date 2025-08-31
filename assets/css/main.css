@@ -135,6 +135,7 @@ h3 {
 	margin-right: 10px;
 	flex-basis: 80px;
 	flex-shrink: 0;
+	align-items: flex-start;
 }
 
 .details-input {
@@ -366,10 +367,12 @@ ul.file-list ul {
     color: #343a40;
     margin-bottom: 8px;
 }
+
 @keyframes fade-out-animation {
   from { opacity: 1; transform: scale(1); }
   to { opacity: 0; transform: scale(0.95); }
 }
+
 .header-container {
     display: flex;
     justify-content: space-between;
@@ -553,6 +556,367 @@ ul.file-list ul {
     flex-wrap: wrap;
 }
 
+/* 筛选编辑器样式 */
+.filter-editor-simple-layout {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    gap: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    background: #f8f9fa;
+    min-height: 400px;
+}
+
+.filter-editor-content-wrap {
+    display: flex;
+    gap: 15px;
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.filter-editor-left-panel,
+.filter-editor-right-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.filter-editor-left-panel {
+    flex-grow: 1;
+    min-width: 0;
+}
+.filter-editor-left-panel textarea {
+    flex-grow: 1;
+    min-height: 200px;
+    font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+    transition: opacity 0.3s ease;
+}
+
+.filter-editor-right-panel {
+    flex-shrink: 0;
+    width: 200px;
+}
+
+.filter-editor-buttons {
+    flex-shrink: 0;
+}
+
+.filter-categories-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1;
+    overflow-y: auto;
+    min-height: 0;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+}
+.filter-categories-list li {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 500;
+}
+.filter-categories-list li:last-child {
+    border-bottom: none;
+}
+.filter-categories-list li:hover {
+    background-color: #e9f4ff;
+}
+.filter-categories-list li.active {
+    background-color: #007bff;
+    color: #fff;
+    border-color: #007bff;
+}
+.category-edit-input {
+    display: none;
+    width: 100%;
+    padding: 2px 5px;
+    border: 1px solid #007bff;
+    border-radius: 3px;
+    outline: none;
+    font-weight: 500;
+}
+.filter-categories-list li.is-editing .category-name-span {
+    display: none;
+}
+.filter-categories-list li.is-editing .category-edit-input {
+    display: block;
+}
+.placeholder-text {
+    text-align: center;
+    color: #6c757d;
+    padding: 20px;
+}
+
+/* 变量样式 */
+.variable-accordion {
+    display: none;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 8px;
+    padding: 15px;
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+.variable-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.variable-item {
+    padding: 5px 12px;
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    color: #495057;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+.variable-item:hover {
+    background-color: #dee2e6;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+}
+
+/* 文件列表项布局 */
+.file-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 2px 0;
+    transition: background-color 0.2s;
+}
+
+.file-list-item:hover {
+    background-color: #f0f0f0;
+}
+
+.file-list-item .file-info-section {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-list-item label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-list-item .file-actions {
+    margin-left: 10px;
+}
+
+/* 改进的下拉菜单样式 */
+.file-list .dropdown-menu {
+    min-width: 120px;
+    right: 0;
+    left: auto;
+}
+
+.file-list .dropdown-toggle {
+    padding: 3px 8px;
+    font-size: 12px;
+}
+
+/* 更好的目录树缩进 */
+.file-list ul.nested {
+    padding-left: 20px;
+    margin-top: 4px;
+}
+
+/* 更明显的选中状态 */
+.dir.selected > .file-list-item {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-left: 3px solid #0d6efd;
+}
+
+/* 处理文件图标和文本的对齐 */
+.file-list-item .icon {
+    margin-right: 6px;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* 美化下拉菜单 */
+.dropdown-item {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.dropdown-item.text-danger {
+    color: #dc3545;
+}
+
+.dropdown-item.text-danger:hover {
+    background-color: #fcf0f1;
+}
+
+.dropdown-menu {
+  display: none; /* 默认隐藏 */
+  position: absolute;
+  z-index: 1000;
+}
+
+.dropdown-menu.active {
+  display: block;
+}
+
+.dropdown.dropup .dropdown-menu {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 2px; 
+}
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #aaa;
+}
+
+.info-banner-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background-color: #e6f7ff;
+    border: 1px solid #91d5ff;
+    color: #0d6efd;
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin: 8px 0;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.info-banner-text-wrapper {
+    flex-grow: 1;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.info-banner-text {
+    display: inline-block;
+    padding-left: 100%;
+    animation: marquee 20s linear infinite;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.info-banner-close {
+    background: none;
+    border: none;
+    color: #0d6efd;
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 5px;
+    margin-left: 10px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.info-banner-close:hover {
+    opacity: 1;
+}
+.header-top-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+    flex-grow: 1;
+}
+
+/* 确保提示横幅本身能灵活伸缩 */
+.header-right-controls {
+    flex-shrink: 1;
+    min-width: 200px;
+}
+
+
+.global-actions .btn-group {
+    white-space: nowrap;
+}
+.test-content {
+    background:#f8f9fa;
+    border:1px solid #e9ecef;
+    padding:10px;
+    border-radius:6px;
+    min-height:40vh;
+    max-height:100px;
+    overflow-y:auto;
+    scrollbar-width: thin;
+    scrollbar-color: #ccc transparent;
+}
+
+.test-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.test-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.test-content::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.test-content::-webkit-scrollbar-thumb:hover {
+    background-color: #aaa;
+}
+
+
+@keyframes marquee {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-150%);
+    }
+}
+
 @media (max-width:768px) {
 	body {
 		padding: 10px;
@@ -615,4 +979,31 @@ ul.file-list ul {
         width: 100%;
     }
 
+    /* 筛选编辑器样式 */
+    .filter-editor-content-wrap {
+        flex-direction: column;
+        min-height: 400px;
+    }
+    .filter-editor-left-panel,
+    .filter-editor-right-panel {
+        width: 100%;
+        height: auto;
+        min-height: 0;
+    }
+    .filter-editor-left-panel {
+        order: 2;
+        flex: 1 1 0%;
+        min-height: 220px;
+        display: flex;
+        flex-direction: column;
+    }
+    .filter-editor-left-panel textarea {
+        flex: 1 1 auto !important;
+        min-height: 200px !important;
+        height: auto !important;
+        max-height: 60vh !important;
+        resize: vertical;
+        width: 100%;
+        box-sizing: border-box;
+    }
 }

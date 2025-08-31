@@ -1,1 +1,1 @@
-编辑器不存在!
+不支持编辑的文件： <?php echo htmlspecialchars($_GET['file']); ?>

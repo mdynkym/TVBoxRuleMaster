@@ -331,7 +331,7 @@
 	position: fixed;
 	bottom: 20px;
 	right: 20px;
-	z-index: 1050;
+	z-index: 10002 !important;
 }
 .toast {
 	background-color: #343a40;
@@ -532,7 +532,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;     opacity: 0;
+    padding: 20px;
+    opacity: 0;
+    z-index: 10001 !important;
     transition: opacity 0.2s ease-in-out;
 }
 .dialog-container {
@@ -578,7 +580,7 @@
     gap: 10px;
 }
 
-/* ---- 修正模态框样式 ---- */
+/* 模态框 */
 
 .winbox.modal-winbox {
     display: flex;
@@ -587,7 +589,7 @@
     border-radius: 8px;
     box-shadow: 0 5px 20px rgba(0,0,0,0.2);
     border: none;
-    z-index: 2147483647 !important;
+    z-index: 10000 !important;
     overflow: hidden;
 }
 
@@ -703,6 +705,18 @@
     border-bottom-right-radius: 8px;
 }
 
+.modal-winbox.no-min .wb-min {
+    display: none !important;
+}
+
+.modal-winbox.no-max .wb-max {
+    display: none !important;
+}
+
+.modal-winbox.no-full .wb-full {
+    display: none !important;
+}
+
 .modal-winbox .modal-main-content::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -726,7 +740,100 @@ body.body-lock-scroll {
     overflow: hidden;
 }
 
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-toggle::after {
+    content: ' ▼';
+    display: inline-block;
+    margin-left: .255em;
+    vertical-align: .255em;
+    font-size: 0.85em;
+    border: none;
+}
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    z-index: 1000;
+    top: 100%;
+    right: 0;
+    width: 100%;
+    padding: 5px 0;
+    margin-top: 5px;
+    font-size: 14px;
+    text-align: left;
+    background-color: #fff;
+    border: 1px solid rgba(0,0,0,.15);
+    border-radius: 6px;
+    box-shadow: 0 6px 12px rgba(0,0,0,.175);
+}
+
+.dropdown-menu.active {
+    display: block; 
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    padding: 8px 16px; 
+    font-weight: 400;
+    color: #343a40;
+    white-space: nowrap;
+    background-color: transparent;
+    border: 0;
+    cursor: pointer;
+    border-radius: 0;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa; 
+    color: #212529;
+}
+
+.btn-group > .dropdown {
+    position: relative;
+    flex: 1 1 auto;
+}
+.btn-group > .dropdown > .btn {
+    border-radius: 0 !important;
+}
+.btn-group > .dropdown:first-child > .btn {
+    border-top-left-radius: 6px !important;
+    border-bottom-left-radius: 6px !important;
+    margin-left: 0;
+}
+.btn-group > .dropdown:last-child > .btn {
+    border-top-right-radius: 6px !important;
+    border-bottom-right-radius: 6px !important;
+}
+.btn-group > .btn + .dropdown {
+    margin-left: -1px;
+}
+.btn-group > .dropdown + .btn {
+    margin-left: -1px;
+}
+
+/* Header 布局样式 */
+.main-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: 10px;
+}
+
+.header-right-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px; 
+}
+
 @media (min-width: 769px) {
+    
     .pc-d-flex { display: flex !important; }
     .pc-d-block { display: block !important; }
     .pc-w-100 { width: 100% !important; }
@@ -743,7 +850,6 @@ body.body-lock-scroll {
     .pc-me-auto { margin-right: auto !important; }
 }
 
-
 @media (max-width:768px) {
     .modal-container {
         padding: 0;
@@ -754,6 +860,7 @@ body.body-lock-scroll {
         right: 5%;
         bottom: 15px;
         margin: 0;
+        z-index: 10002 !important;
     }
     .toast {
         width: 100%;
@@ -822,7 +929,18 @@ body.body-lock-scroll {
         border-top-left-radius: 0 !important;
         border-bottom-left-radius: 0 !important;
     }
-
+    .dropdown-menu {
+        width: 100%;
+        right: 0 !important;
+        left: auto !important;
+        z-index: 100002 !important;
+    }
+    .main-header .btn-group {
+        overflow: visible;
+    }
+    .btn-group > .dropdown {
+        flex-grow: 0;
+    }
     .m-d-flex { display: flex !important; }
     .m-d-block { display: block !important; }
     .m-w-100 { width: 100% !important; }

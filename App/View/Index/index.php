@@ -5,47 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TVBox Rule Master</title>
     <link rel="stylesheet" href="assets/css/ui.css?t=<?php echo time();?>">
-    <link rel="stylesheet" href="assets/css/main.css?t=<?php echo time();?>">
+    <link rel="icon" type="image/png" href="assets/img/ico.png">
+    <link rel="stylesheet" href="/assets/css/main.css?t=<?php echo time();?>">
+    
 </head>
 <body>
 
     <div class="container">
-        <header class="main-header d-flex align-items-center flex-wrap">
-            <div class="file-path me-auto">
-                <span class="file-icon">📖</span>
-                <span id="file-name-display" class="file-name">选择文件或输入链接</span>
-            </div>
-
-            <div class="layout-selector">
-                <label for="column-select">列表布局:</label>
-                <select id="column-select" name="column-select">
-                    <option value="1">每行1个</option>
-                    <option value="2" selected="">每行2个</option>
-                    <option value="3">每行3个</option>
-                    <option value="4">每行4个</option>
-                </select>
-            </div>
-
-            <div class="global-actions">
-                <div class="btn-group gbtn-sm">
-                    <button id="saveBtn" class="btn primary-btn">保存修改</button>
-                    <button id="aiHelperBtn" class="btn secondary-btn">Ai帮写</button>
-                    <button id="historyBtn" class="btn secondary-btn">文件历史</button>
-                    <button id="online-edit-btn" class="btn secondary-btn">在线编辑</button>
-                    <button id="downloadRulesBtn" class="btn secondary-btn">下载</button>
+            <div id="save-reminder-banner" class="info-banner-container" style="display: none;">
+                <div class="info-banner-text-wrapper">
+                    <span class="info-banner-text">温馨提示：对规则的任何修改（增、删、改），都必须点击下方的“保存修改”按钮才会生效！</span>
                 </div>
+                <button id="close-save-reminder" class="info-banner-close" title="不再提示">&times;</button>
             </div>
 
-            <div class="input-with-buttons w-100 mt-2">
-                <input type="text" id="jsonUrlInput" placeholder="请输入TVbox规则集合的JSON链接">
-                <div class="btn-group">
-                    <button id="readUrlBtn" class="btn primary-btn">加载</button>
-                    <button id="viewSourceBtn" class="btn secondary-btn">查看源码</button>
-                    <button id="selectFileBtn" class="btn secondary-btn">选择文件</button>
-                    <button id="pushBtn" class="btn warning-btn">推送</button>
+            <header class="main-header d-flex align-items-center flex-wrap">
+                <div class="file-path me-auto">
+                    <span class="file-icon">📖</span>
+                    <span id="file-name-display" class="file-name">选择文件或输入链接</span>
                 </div>
-            </div>
-        </header>
+
+                <div class="global-actions">
+                    <div class="btn-group">
+                        <button id="saveBtn" class="btn primary-btn">保存修改</button>
+                        <button id="downloadRulesBtn" class="btn secondary-btn">下载</button>
+                        <button id="settingsBtn" class="btn secondary-btn">设置</button> 
+                    </div>
+                </div>
+
+                <div class="input-with-buttons w-100 mt-2">
+                    <input type="text" id="jsonUrlInput" placeholder="请输入TVbox规则集合的JSON链接">
+                    <div class="btn-group">
+                        <button id="readUrlBtn" class="btn primary-btn">加载</button>
+                        <button id="selectFileBtn" class="btn secondary-btn">选择文件</button>
+                        <div class="dropdown">
+                            <button class="btn secondary-btn dropdown-toggle" data-toggle="dropdown">更多操作</button>
+                            <div class="dropdown-menu">
+                                <button id="historyBtn" class="dropdown-item">文件历史</button>
+                                <button id="viewSourceBtn" class="dropdown-item">查看源码</button>
+                                <button id="online-edit-btn" class="dropdown-item">在线编辑</button>
+                                <button id="encrypt-config-btn" class="dropdown-item">配置加密</button>
+                                <button id="pushBtn" class="dropdown-item">推送</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
 
         <main class="main-content">
             <div class="tabs">
@@ -146,7 +152,7 @@
         </script>
         
         <script id="add-parse-modal-template" type="text/x-handlebars-template">
-             <div id="create-parse-form-modal" class="details-panel create-panel active" style="max-height:none; opacity:1; padding:0; background:none;">
+             <div id="create-parse-form-modal" class="details-panel create-panel active" style="max-height:none; opacity:1; padding:5px; background:none;">
                 <div class="details-form-grid">
                     <div class="form-group"><label for="new-parse-name-modal">接口名称</label><input id="new-parse-name-modal" type="text" placeholder="例如：XX解析"></div>
                     <div class="form-group"><label for="new-parse-type-modal">类型</label><input id="new-parse-type-modal" type="text" placeholder="0, 1, 2, 3"></div>
@@ -155,22 +161,83 @@
                 </div>
             </div>
         </script>
-        
-        <script id="add-filter-modal-template" type="text/x-handlebars-template">
-            <div id="create-filter-form-modal" class="details-panel create-panel active" style="max-height:none; opacity:1; padding:0; background:none;">
-                <div class="details-form-grid">
-                    <div class="form-group"><label for="new-filter-name-modal">规则名称</label><input id="new-filter-name-modal" type="text" placeholder="例如：非凡过滤"></div>
-                    <div class="form-group"><label for="new-filter-host-modal">主机名</label><input id="new-filter-host-modal" type="text" placeholder="例如：vip.ffzy"></div>
-                    <div class="form-group" style="grid-column: 1 / -1;"><label for="new-filter-hosts-modal">主机列表</label><textarea id="new-filter-hosts-modal" rows="3" placeholder='例如：["vip.ffzy"]'></textarea></div>
-                    <div class="form-group" style="grid-column: 1 / -1;"><label for="new-filter-rules-modal">规则列表</label><textarea id="new-filter-rules-modal" rows="3" placeholder='例如：["playwm/?video_id="]'></textarea></div>
+        <script id="filter-item-template" type="text/x-handlebars-template">
+            <div id="rule-item-{{index}}" class="rule-item-container" data-index="{{index}}" data-item-type="rules">
+                <button type="button" class="delete-item-btn">&times;</button>
+                <div class="form-group">
+                    <label for="rule-{{index}}-{{#if rule}}rule{{else}}regex{{/if}}">
+                        {{#if name}}{{name}}{{else if hosts}}{{hosts}}{{else}}{{host}}{{/if}}
+                    </label>
+                    <div class="input-with-buttons" style="flex-direction: column; gap: 5px; align-items: stretch;">
+                        {{#if rule}}
+                            <textarea id="rule-{{index}}-rule" class="details-input" readonly rows="2" placeholder="规则 (rule)">{{rule}}</textarea>
+                        {{/if}}
+                        {{#if regex}}
+                            <textarea id="rule-{{index}}-regex" class="details-input" readonly rows="2" placeholder="正则 (regex)">{{regex}}</textarea>
+                        {{/if}}
+                    </div>
                 </div>
             </div>
         </script>
+        <script id="add-live-modal-template" type="text/x-handlebars-template">
+             <div id="create-live-form-modal" class="details-panel create-panel active" style="max-height:none; opacity:1; padding:5px; background:none;">
+                <div class="details-form-grid">
+                    <div class="details-item"><label class="details-label" for="new-live-name-modal">名称</label><input id="new-live-name-modal" class="details-input" type="text" placeholder="例如：我的直播"></div>
+                    <div class="details-item"><label class="details-label" for="new-live-type-modal">类型</label><input id="new-live-type-modal" class="details-input" type="number" value="0" placeholder="例如: 0"></div>
+                    
+                    <div class="details-item">
+                        <label class="details-label" for="new-live-pass-modal">Pass</label>
+                        <div class="input-with-buttons">
+                            <input class="details-input" type="text" id="new-live-pass-modal" value="false">
+                            <div class="btn-group gbtn-sm">
+                                <button type="button" class="btn success-btn bool-setter" data-target-id="new-live-pass-modal" data-value="true">True</button>
+                                <button type="button" class="btn danger-btn bool-setter" data-target-id="new-live-pass-modal" data-value="false">False</button>
+                            </div>
+                        </div>
+                    </div>
 
+                    <div class="details-item" style="grid-column: 1 / -1;"><label class="details-label" for="new-live-url-modal">链接</label><input id="new-live-url-modal" class="details-input" type="text" placeholder="http://.../playlist.txt"></div>
+                    <div class="details-item" style="grid-column: 1 / -1;"><label class="details-label" for="new-live-epg-modal">EPG</label><input id="new-live-epg-modal" class="details-input" type="text" placeholder="EPG链接 (可选)"></div>
+                    <div class="details-item" style="grid-column: 1 / -1;"><label class="details-label" for="new-live-logo-modal">Logo</label><input id="new-live-logo-modal" class="details-input" type="text" placeholder="Logo链接 (可选)"></div>
+                    
+                    <div class="details-item"><label class="details-label" for="new-live-ua-modal">User-Agent</label><input id="new-live-ua-modal" class="details-input" type="text" placeholder="例如: okhttp/3.12.13"></div>
+                    <div class="details-item"><label class="details-label" for="new-live-playerType-modal">播放器类型</label><input id="new-live-playerType-modal" class="details-input" type="number" placeholder="例如: 1"></div>
+                </div>
+            </div>
+        </script>
+        <script id="add-filter-modal-template" type="text/x-handlebars-template">
+            <div id="create-filter-form-modal" class="details-panel create-panel active" style="max-height:none; opacity:1; padding:5px; background:none;">
+                <div class="details-form-grid">
+                    <div class="form-group">
+                        <label for="new-filter-name-modal">name</label>
+                        <input id="new-filter-name-modal" type="text" placeholder="e.g., hwk">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-filter-host-modal">host</label>
+                        <input id="new-filter-host-modal" type="text" placeholder="e.g., somehost">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="new-filter-hosts-modal">hosts</label>
+                        <textarea id="new-filter-hosts-modal" rows="2" placeholder='e.g., ["haiwaikan"]'></textarea>
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="new-filter-rules-modal">rule</label>
+                        <textarea id="new-filter-rules-modal" rows="2" placeholder='e.g., ["ad_domain/path"]'></textarea>
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="new-filter-regex-modal">regex</label>
+                        <textarea id="new-filter-regex-modal" rows="2" placeholder='e.g., ["10.0099", "10.3333"]'></textarea>
+                    </div>
+                </div>
+            </div>
+        </script>
         <script id="basic-tab-template" type="text/x-handlebars-template">
             <div class="form-group">
                 <label for="spider-url">爬虫Jar (spider) <span id="status-spider" class="download-status"></span></label>
-                <input type="text" id="spider-url" name="spider-url" value="{{spiderPath}}">
+                <div class="input-with-buttons">
+                    <input type="text" id="spider-url" value="{{spiderPath}}" placeholder="例如: ./libs/drpy.js">
+                    <button type="button" id="select-spider-btn" class="btn secondary-btn btn-sm">选择</button>
+                </div>
             </div>
             <div class="form-group">
                 <label for="wallpaper-url">壁纸 (wallpaper)</label>
@@ -201,7 +268,7 @@
             </div>
         </script>
         
-<script id="site-item-template" type="text/x-handlebars-template">
+        <script id="site-item-template" type="text/x-handlebars-template">
             <div id="site-item-{{index}}" class="rule-item-container" data-api="{{api}}" data-index="{{index}}" data-item-type="sites">
                 <button type="button" class="delete-item-btn">&times;</button>
                 <div class="form-group">
@@ -243,6 +310,7 @@
             </div>
             <div class="rule-list-grid"></div>
         </script>
+
         <script id="details-modal-body-template" type="text/x-handlebars-template">
             <div class="details-form-grid">
                 {{#each fields}}
@@ -284,30 +352,60 @@
             {{#if files.length}}
             <ul class="file-list">
                 {{#each files}}
-                {{#if (eq type "dir")}}
-                <li class="dir collapsed">
-                    <div class="file-list-item is-dir">
-                        <span class="icon toggle-icon">+</span>
-                        <span class="icon">📁</span> {{name}}
-                    </div>
-                    {{{buildList children}}}
-                </li>
-                {{else}}
-                <li>
-                    {{#if (endsWith name ".json")}}
-                    <div class="file-list-item is-file">
-                        <label>
-                            <input type="radio" name="server-file-radio" value="{{path}}">
-                            <span class="icon">📄</span> {{name}}
-                        </label>
-                    </div>
+                    {{#if (eq type "dir")}}
+                    <li class="dir collapsed" data-path="{{path}}" data-name="{{name}}" data-type="dir">
+                        <div class="file-list-item is-dir">
+                            <div class="file-info-section">
+                                <span class="icon toggle-icon">+</span>
+                                <span class="icon">📁</span>
+                                <span class="file-name-text">{{name}}</span>
+                            </div>
+                            <div class="file-actions">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm secondary-btn dropdown-toggle" data-toggle="dropdown">管理</button>
+                                    <div class="dropdown-menu">
+                                        <button class="dropdown-item file-action-btn" data-action="new-file">新建文件</button>
+                                        <button class="dropdown-item file-action-btn" data-action="new-dir">新建目录</button>
+                                        <button class="dropdown-item file-action-btn" data-action="upload">上传文件</button>
+                                        <div class="dropdown-divider"></div>
+                                        <button class="dropdown-item file-action-btn" data-action="rename">重命名</button>
+                                        <button class="dropdown-item file-action-btn text-danger" data-action="delete">删除</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {{#if children.length}}
+                        <ul class="nested">
+                            {{{buildList children}}}
+                        </ul>
+                        {{/if}}
+                    </li>
                     {{else}}
-                    <div class="file-list-item is-file" style="padding-left: 30px;">
-                        <span class="icon">▫️</span> {{name}}
-                    </div>
+                    <li data-path="{{path}}" data-name="{{name}}" data-type="file">
+                        <div class="file-list-item is-file">
+                            <div class="file-info-section">
+                                <label>
+                                    {{#if isSelectable}}
+                                    <input type="radio" name="server-file-radio" value="{{path}}">
+                                    <span class="icon">📄</span>
+                                    {{else}}
+                                    <span class="icon" style="margin-left: 28px;">▫️</span>
+                                    {{/if}}
+                                    <span class="file-name-text">{{name}}</span>
+                                </label>
+                            </div>
+                            <div class="file-actions">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm secondary-btn dropdown-toggle" data-toggle="dropdown">管理</button>
+                                    <div class="dropdown-menu">
+                                        <button class="dropdown-item file-action-btn" data-action="rename">重命名</button>
+                                        <button class="dropdown-item file-action-btn text-danger" data-action="delete">删除</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
                     {{/if}}
-                </li>
-                {{/if}}
                 {{/each}}
             </ul>
             {{else}}
@@ -392,13 +490,82 @@
                 </div>
             </div>
         </script>
+        <script id="settings-modal-template" type="text/x-handlebars-template">
+            <div class="settings-modal-container">
+                <div class="tabs">
+                    <div class="tab-btn active" data-tab="settings-general">通用设置</div>
+                    <div class="tab-btn" data-tab="settings-variables">变量默认值</div>
+                </div>
+
+                <div id="settings-general" class="tab-content active" style="display: block; padding: 5px;">
+                    <div class="form-group">
+                        <label for="settings-column-select">列表布局</label>
+                        <select id="settings-column-select" name="column-select">
+                            <option value="1">每行1个</option>
+                            <option value="2">每行2个</option>
+                            <option value="3">每行3个</option>
+                            <option value="4">每行4个</option>
+                        </select>
+                        <p class="tip">用于控制爬虫、解析等列表项的显示列数。</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="proxy-url-input">GitHub 加速域名</label>
+                        <input type="text" id="proxy-url-input" placeholder="例如：https://gh-proxy.net" value="{{proxyUrl}}">
+                        <p class="tip">用于加速访问 raw.githubusercontent.com 的内容。留空则不使用加速。</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="global-ua-input">全局 User-Agent</label>
+                        <input type="text" id="global-ua-input" placeholder="例如：okhttp/3.15" value="{{globalUA}}">
+                        <p class="tip">此UA将在加载远程配置文件时使用，可避免因默认UA被屏蔽导致加载失败。</p>
+                    </div>
+                    <div class="form-group">
+                        <label>缓存管理</label>
+                        <button type="button" id="clear-cache-btn" class="btn danger-btn">立即清空缓存</button>
+                        <p class="tip">点击将删除服务器上所有的代理缓存文件，下次访问将重新获取最新内容。</p>
+                    </div>
+                </div>
+
+                <div id="settings-variables" class="tab-content" style="display: none; padding: 5px;">
+                    <div id="variable-defaults-inputs" class="details-form-grid" style="padding: 5px 0;">
+                    </div>
+                    <p class="tip">这些值将在请求规则链接时，作为URL中 {变量} 的默认替换值。</p>
+                </div>
+            </div>
+        </script>
+        <script id="paste-modal-template" type="text/x-handlebars-template">
+            <div class="paste-modal-content">
+                {{#if internalClipboardRules.length}}
+                <div class="internal-paste-section" style="margin-bottom: 5px; padding-bottom: 0px; border-bottom: 1px solid #eee;">
+                    <p class="tip" style="margin-top:0;">检测已复制规则：</p>
+                    <span class="tip-sm" style="font-size: 12px; color: #888; text-align: center; margin-top: 0px;"> - 此方式将自动复制关联的 .js/.jar 文件</span>
+
+                    <ul class="list-group custom-scrollbar" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding: 5px 2px;">
+                        {{#each internalClipboardRules}}
+                        <li class="list-group-item d-flex justify-between align-items-center" style="padding: 10px 12px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #f8f9fa;">
+                            <span title="{{this.data.name}}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 10px; font-weight: 500;">{{this.data.name}}</span>
+                            <button class="btn btn-sm primary-btn paste-internal-item-btn" data-index="{{@index}}">
+                                <span class="icon">📋</span> 粘贴
+                            </button>
+                        </li>
+                        {{/each}}
+                    </ul>
+                </div>
+                {{/if}}
+                <p class="tip">手动粘贴规则JSON文本 (Ctrl+V)</p>
+                <textarea id="paste-content-textarea" rows="8" style="width: 100%; font-family: monospace; font-size: 14px;" placeholder="支持单条规则对象，或多条规则组成的数组..."></textarea>
+            </div>
+        </script>
+
     </div>
 
     <input type="file" id="localFileInput" accept=".json" style="display: none;">
+    <input type="file" id="uploadFileInput" style="display: none;" multiple>
     <div class="toast-container"></div>
     <script>
+        const rawSavePath = '<?php echo C('DEFAULT_SAVE_PATH'); ?>';
+        const cleanedSavePath = (rawSavePath || './box/').replace(/^\.\/|\/$/g, '');
         window.APP_CONFIG = {
-            DEFAULT_SAVE_PATH: '<?php echo C('DEFAULT_SAVE_PATH'); ?>'
+            DEFAULT_SAVE_PATH: cleanedSavePath
         };
     </script>
     <script src="assets/js/winbox.bundle.min.js"></script>

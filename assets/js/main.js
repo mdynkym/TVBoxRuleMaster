@@ -7,6 +7,7 @@
  * --------------------------------------------------------------------
  */
 document.addEventListener('DOMContentLoaded', () => {
+    initDropdowns(); // 初始化下拉菜单
 
     /**
      * @description 全局变量和实例定义
@@ -16,10 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentEditInfo = {};
     let rawJsonContent = '';
     let currentConfigBaseDir = '';
-    let ruleClipboard = {
-        data: null,
-        sourceBaseDir: ''
-    };
+
     const defaultJsonUrl = 'https://raw.githubusercontent.com/liu673cn/box/refs/heads/main/m.json';
 
     /**
@@ -30,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'filter-item-template', 'tab-content-template', 'details-modal-body-template',
         'file-browser-body-template', 'add-site-modal-template', 'add-parse-modal-template',
         'add-filter-modal-template', 'download-modal-template', 'ai-helper-modal-template',
-        'push-modal-template'
+        'push-modal-template','settings-modal-template', 'add-live-modal-template','paste-modal-template'
     ];
     
     const templates = templateIds.reduce((acc, id) => {
@@ -57,64 +55,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const jsonUrlInput = document.getElementById('jsonUrlInput');
     const localFileInput = document.getElementById('localFileInput');
     const loadingDiv = document.getElementById('loading');
-
-    /**
-     * @description 从localStorage获取URL历史记录
-     * @returns {string[]}
-     */
-    function getUrlHistory() {
-        try {
-            const history = localStorage.getItem('urlHistory');
-            return history ? JSON.parse(history) : [];
-        } catch (e) {
-            return [];
-        }
-    }
-
-    /**
-     * @description 将新的URL添加到历史记录中
-     * @param {string} url 
-     */
-    function addToUrlHistory(url) {
-        let history = getUrlHistory();
-        history = history.filter(item => item !== url);
-        history.unshift(url);
-        if (history.length > 20) {
-            history.pop();
-        }
-        localStorage.setItem('urlHistory', JSON.stringify(history));
-    }
+    const uploadFileInput = document.getElementById('uploadFileInput');
 
     /**
      * @description 更新所有列表的列数
      */
+
     function updateGridColumns() {
-        const columns = document.getElementById('column-select').value;
+        const columns = localStorage.getItem('gridColumns') || '2';
         document.querySelectorAll('.rule-list-grid').forEach(grid => {
             grid.style.setProperty('--grid-columns', columns);
         });
     }
     
-    /**
-     * @description 解析资源路径，移除md5等后缀
-     * @param {string} pathStr - 原始路径字符串
-     * @returns {string|null} 解析后的路径
-     */
-    function parseAssetPath(pathStr) {
-        if (!pathStr || typeof pathStr !== 'string') return null;
-        return pathStr.split(';')[0];
-    }
-    
-    /**
-     * @description 获取URL的基础路径
-     * @param {string} url - 完整的URL地址
-     * @returns {string} URL的基础路径
-     */
-    function getBaseUrl(url) {
-        const lastSlash = url.lastIndexOf('/');
-        return url.substring(0, lastSlash + 1);
-    }
-
     /**
      * @description 更新UI上的下载状态指示器
      * @param {string} uniqueId - 状态元素的唯一ID
@@ -125,6 +78,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (statusElement) {
             statusElement.className = `download-status ${status || 'pending'}`;
         }
+    }
+
+
+    // 提示横幅
+    const reminderBanner = document.getElementById('save-reminder-banner');
+    const closeReminderBtn = document.getElementById('close-save-reminder');
+
+    if (reminderBanner && closeReminderBtn) {
+        if (localStorage.getItem('hideSaveReminder') !== 'true') {
+            reminderBanner.style.display = 'flex';
+        }
+        closeReminderBtn.addEventListener('click', () => {
+            reminderBanner.style.display = 'none';
+            localStorage.setItem('hideSaveReminder', 'true');
+        });
     }
 
     /**
@@ -146,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (statuses.length === 0) {
-            updateDownloadStatusUI(`site-item-${index}`, ''); // 如果没有可下载资源，则清除状态
+            updateDownloadStatusUI(`site-item-${index}`, ''); /** 如果没有可下载资源，则清除状态 */
             return;
         }
         
@@ -166,13 +134,19 @@ document.addEventListener('DOMContentLoaded', () => {
      * @description 从URL加载并渲染规则
      */
     function loadAndRenderRulesFromUrl() {
-        const url = jsonUrlInput.value.trim();
+        const url = new URL(jsonUrlInput.value.trim()).href;
         if (!url) {
             showToast('请输入有效的JSON链接地址。', 'error');
             return;
         }
+
+        if (!url.startsWith('http')) {
+            showToast('URL必须以http://或https://开头。', 'error');
+            return;
+        }
+        jsonUrlInput.value = url;
         
-        const savePathDir = (window.APP_CONFIG.DEFAULT_SAVE_PATH || './box/').replace(/^\.\/|\/$/g, '');
+        const savePathDir = window.APP_CONFIG.DEFAULT_SAVE_PATH;
         const urlPathSegment = `/${savePathDir}/`;
 
         if (url.includes(urlPathSegment)) {
@@ -190,20 +164,45 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingDiv.style.display = 'block';
         rawJsonContent = '';
         const proxyUrl = `index.php/Proxy/load?target_url=${encodeURIComponent(url)}`;
-        fetch(proxyUrl)
+        const fetchOptions = {
+            method: 'GET',
+            headers: {}
+        };
+        const globalUA = localStorage.getItem('globalUserAgent') || 'okhttp/3.15';
+        if (globalUA) {
+            fetchOptions.headers['X-Custom-UA'] = globalUA;
+        }
+        fetch(proxyUrl, fetchOptions)
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP 错误! 状态码: ${response.status}`);
                 return response.text();
             })
             .then(responseText => {
+
                 rawJsonContent = responseText;
-                addToUrlHistory(url);
+                updateLocalStorageHistory('urlHistory', url);
                 localStorage.setItem('savedJsonUrl', url);
                 document.getElementById('file-name-display').textContent = url.split('/').pop();
                 processJsonContent(responseText);
             })
             .catch(error => {
                 showToast(`读取或解析失败: ${error.message}`, 'error');
+                
+                const formData = new FormData();
+                formData.append('target_url', url);
+                
+                fetch('index.php/Proxy/clearCacheForUrl', {
+                    method: 'POST',
+                    body: formData
+                }).then(res => res.json()).then(result => {
+                    if (result.success) {
+                        console.log('旧缓存清理成功:', result.message);
+                    } else {
+                        console.warn('旧缓存清理失败:', result.message);
+                    }
+                }).catch(err => {
+                    console.error('发送清理缓存请求时出错:', err);
+                });
             })
             .finally(() => {
                 loadingDiv.style.display = 'none';
@@ -237,14 +236,30 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.tab-content').forEach(tab => tab.innerHTML = '');
         loadingDiv.style.display = 'block';
         try {
-            let cleanedContent = content
-                .split('\n')
-                .filter(line => !line.trim().startsWith('//') && !line.trim().startsWith('/*'))
-                .join('\n')
-                .replace(/,\s*([}\]])/g, '$1');
-            currentRulesData = JSON.parse(cleanedContent);
-            renderAllTabs(currentRulesData);
+            currentRulesData = parseCleanJson(content);
 
+            if (!isValidConfigFormat(currentRulesData)) {
+                throw new Error('文件内容不是有效的主配置格式');
+            }
+
+            function traverseAndProxy(node) {
+                if (typeof node === 'string') {
+                    return applyGitHubProxy(node);
+                }
+                if (Array.isArray(node)) {
+                    return node.map(traverseAndProxy);
+                }
+                if (typeof node === 'object' && node !== null) {
+                    const newObj = {};
+                    for (const key in node) {
+                        newObj[key] = traverseAndProxy(node[key]);
+                    }
+                    return newObj;
+                }
+                return node;
+            }
+            currentRulesData = traverseAndProxy(currentRulesData);
+            
             if (currentRulesData.sites && Array.isArray(currentRulesData.sites)) {
                 const apisToUpdate = [...new Set(
                     currentRulesData.sites
@@ -260,6 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             }
+            
+            renderAllTabs(currentRulesData);
 
             setTimeout(() => {
                 const initialActiveTab = document.querySelector('.tabs .tab-btn.active');
@@ -271,7 +288,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             showToast('规则加载并渲染成功！', 'success');
         } catch (error) {
-            showToast(`解析JSON失败: ${error.message}`, 'error');
+            // 统一处理所有错误 (解析失败、格式无效等)
+            showToast(`处理JSON失败: ${error.message}`, 'error');
         } finally {
             loadingDiv.style.display = 'none';
         }
@@ -422,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = templates.tabContent({ 
             entityName: '直播', 
             itemType: 'lives',
-            showCreateButton: false 
+            showCreateButton: true 
         });
         container.querySelector('.rule-list-grid').addEventListener('click', handleGridItemClick);
         
@@ -457,14 +475,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const grid = container.querySelector('.rule-list-grid');
         let listHtml = '';
         (rules || []).forEach((rule, index) => {
-            const displayName = rule.name || (Array.isArray(rule.hosts) ? rule.hosts.join(', ') : rule.host);
-            let displayValue = '';
-            if (rule.rule) { displayValue = Array.isArray(rule.rule) ? rule.rule.join('\n') : rule.rule; } 
-            else if (rule.regex) { displayValue = Array.isArray(rule.regex) ? rule.regex.join('\n') : rule.regex; }
             listHtml += templates.filterItem({
                 index: index,
-                displayName: displayName,
-                displayValue: displayValue
+                name: rule.name,
+                host: rule.host,
+                // 将数组形式的 hosts/rule/regex 转换为多行文本
+                hosts: Array.isArray(rule.hosts) ? rule.hosts.join(', ') : rule.hosts,
+                rule: Array.isArray(rule.rule) ? rule.rule.join('\n') : rule.rule,
+                regex: Array.isArray(rule.regex) ? rule.regex.join('\n') : rule.regex
             });
         });
         grid.innerHTML = listHtml;
@@ -475,31 +493,157 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * @description 打开文件浏览器弹窗
+     * @param {object} [options={}] - 配置对象
+     * @param {string} [options.mode='open'] - 模式, 'open' (默认) 或 'select'
+     * @param {string} [options.filter='*'] - 文件筛选, '*'代表全部, 'jar|json'代表指定类型
+     * @param {function} [options.onSelect=null] - 在 'select' 模式下, 选中文件后的回调函数
      */
-    async function openFileBrowser() {
+    async function openFileBrowser(options = {}) {
+        const { mode = 'open', filter = '*', onSelect = null } = options;
+
+        let footerHtml = '';
+        if (mode === 'select') {
+            footerHtml = `<button id="confirm-select-file-btn" class="btn primary-btn">确认选择</button>`;
+        } else {
+            footerHtml = `
+                <button id="create-new-config-btn" class="btn secondary-btn">新建配置</button>
+                <button id="open-selected-file-btn" class="btn primary-btn">打开配置</button>
+            `;
+        }
+
         const fileBrowserModal = new Modal({
             id: 'file-browser-modal',
-            title: '选择服务器上的配置文件',
-            footer: `
-                <button id="select-local-file-btn" class="btn secondary-btn">选择本地文件</button>
-                <button id="open-selected-file-btn" class="btn primary-btn">打开选中文件</button>
-            `
+            title: '文件管理器',
+            footer: footerHtml
         });
 
         const body = fileBrowserModal.getBodyElement();
         body.innerHTML = '<div class="loading-spinner"></div>';
+        
+        let initialPath = '';
+        if (mode === 'select') {
+            const mainConfigUrl = jsonUrlInput.value.trim();
+            if (mainConfigUrl) {
+                try {
+                    const path = new URL(mainConfigUrl).pathname;
+                    initialPath = path.substring(0, path.lastIndexOf('/'));
+                } catch(e) { }
+            }
+        }
+        
+        // 将 filter 传递给 refreshFileBrowser
+        await refreshFileBrowser(body, new Set(), initialPath, filter);
+
+        if (mode === 'select' && typeof onSelect === 'function') {
+            const confirmBtn = document.getElementById('confirm-select-file-btn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', () => {
+                    const selectedRadio = document.querySelector('#file-browser-modal .modal-main-content input[name="server-file-radio"]:checked');
+                    if (!selectedRadio) {
+                        showToast('请先选择一个文件！', 'error');
+                        return;
+                    }
+                    const selectedPath = selectedRadio.value;
+                    onSelect(selectedPath);
+                    closeModalById('file-browser-modal');
+                }, { once: true });
+            }
+        }
+    }
+
+    /**
+     * @description 获取当前文件浏览器中所有已展开目录的路径
+     * @returns {Set<string>} 一个包含所有已展开目录路径的 Set
+     */
+    function getExpandedPaths() {
+        const expandedPaths = new Set();
+        const fileBrowserModal = document.getElementById('file-browser-modal');
+        if (fileBrowserModal) {
+            const expandedDirs = fileBrowserModal.querySelectorAll('li.dir:not(.collapsed)');
+            expandedDirs.forEach(dir => {
+                if (dir.dataset.path) {
+                    expandedPaths.add(dir.dataset.path);
+                }
+            });
+        }
+        return expandedPaths;
+    }
+
+    /**
+     * @description 刷新文件浏览器内容, 并恢复指定的展开状态
+     * @param {HTMLElement} container - 文件列表的容器元素
+     * @param {Set<string>} [expandedPaths=new Set()] - 需要保持展开状态的目录路径集合
+     * @param {string} [initialPath=''] - 初始加载时要展开到的目录路径
+     * @param {string} [filter='*'] - 文件类型筛选器
+     */
+    async function refreshFileBrowser(container, expandedPaths = new Set(), initialPath = '', filter = '*') {
+        if (!container) {
+            const modal = document.getElementById('file-browser-modal');
+            if (!modal) return;
+            container = modal.querySelector('.modal-main-content');
+        }
+        container.innerHTML = '<div class="loading-spinner"></div>';
         try {
-            const response = await fetch('index.php/Proxy/listFiles');
+            const response = await fetch(`index.php/Proxy/listFiles?path=${encodeURIComponent(initialPath)}`);
             if (!response.ok) throw new Error('无法获取文件列表');
-            const files = await response.json();
+            let files = await response.json();
+            
+            // 使用递归函数来标记整个文件树
+            const filterExtensions = filter === '*' ? null : filter.split('|').map(ext => `.${ext.trim().toLowerCase()}`);
+
+            function markSelectable(fileList) {
+                if (!Array.isArray(fileList)) return;
+
+                fileList.forEach(file => {
+                    if (file.type === 'file') {
+                        if (filterExtensions) {
+                            file.isSelectable = filterExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+                        } else {
+                            file.isSelectable = true; // 如果 filter 是 '*', 所有文件都可选
+                        }
+                    } else {
+                        file.isSelectable = false; // 目录永远不可选
+                        // 递归处理子目录
+                        if (file.children && file.children.length > 0) {
+                            markSelectable(file.children);
+                        }
+                    }
+                });
+            }
+
+            // 对从服务器获取的顶层文件列表执行标记
+            markSelectable(files);
+
             if (files.length === 0) {
-                body.innerHTML = '<p>服务器上的 "box" 目录为空或不存在。</p>';
+                container.innerHTML = '<p>服务器上的 "box" 目录为空或不存在。</p>';
             } else {
-                body.innerHTML = templates.fileBrowserBody({ files: files });
+                container.innerHTML = templates.fileBrowserBody({ files: files });
+                // 恢复展开状态
+                expandedPaths.forEach(path => {
+                    const dirLi = container.querySelector(`li.dir[data-path="${path}"]`);
+                    if (dirLi) {
+                        dirLi.classList.remove('collapsed');
+                        const icon = dirLi.querySelector('.toggle-icon');
+                        if (icon) icon.textContent = '−';
+                    }
+                });
             }
         } catch (error) {
-            body.innerHTML = `<p class="error-message">加载失败: ${error.message}</p>`;
+            container.innerHTML = `<p class="error-message">加载失败: ${error.message}</p>`;
         }
+    }
+
+   /**
+     * @description 验证加载的数据是否符合主配置格式
+     * @param {object} data - 已解析的JSON数据
+     * @returns {boolean} - 如果格式有效则返回 true, 否则返回 false
+     */
+    function isValidConfigFormat(data) {
+        if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+            return false;
+        }
+        const requiredKeys = ['sites', 'parses', 'flags', 'rules', 'ads', 'spider'];
+        return requiredKeys.some(key => Array.isArray(data[key]));
     }
     
     /**
@@ -513,7 +657,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const filePath = selectedRadio.value;
         const currentPath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
-        const newUrl = `${window.location.origin}${currentPath}/box/${filePath}`;
+        const savePathDir =window.APP_CONFIG.DEFAULT_SAVE_PATH;
+        const newUrl = `${window.location.origin}${currentPath}/${savePathDir}/${filePath}`;
+
         jsonUrlInput.value = newUrl;
         closeModalById('file-browser-modal');
         loadAndRenderRulesFromUrl();
@@ -788,12 +934,14 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const hostsText = document.getElementById('new-filter-hosts-modal').value.trim();
         const rulesText = document.getElementById('new-filter-rules-modal').value.trim();
-        
+        const regexText = document.getElementById('new-filter-regex-modal').value.trim(); // 读取regex字段
+
         try {
             if (hostsText) newRule.hosts = JSON.parse(hostsText);
             if (rulesText) newRule.rule = JSON.parse(rulesText);
+            if (regexText) newRule.regex = JSON.parse(regexText); // 解析regex字段
         } catch (e) {
-            showToast('主机列表或规则列表的JSON格式无效！', 'error');
+            showToast('hosts, rule, 或 regex 的JSON格式无效！', 'error');
             return;
         }
 
@@ -805,6 +953,41 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('新过滤规则已添加！', 'success');
         closeModalById('add-filter-modal');
     }
+
+    /**
+     * @description 添加新的直播源
+     */
+    function addLiveRule(){
+        const getInputValue = (id) => document.getElementById(id)?.value.trim() || '';
+
+        const name = getInputValue('new-live-name-modal');
+        const url = getInputValue('new-live-url-modal');
+
+        if (!name || !url) {
+            showToast('名称和链接不能为空。', 'warning');
+            return;
+        }
+        
+        const newLive = {
+            name: name,
+            type: parseInt(getInputValue('new-live-type-modal') || '0', 10),
+            pass: getInputValue('new-live-pass-modal') === 'true',
+            url: url,
+            epg: getInputValue('new-live-epg-modal') || undefined,
+            logo: getInputValue('new-live-logo-modal') || undefined,
+            ua: getInputValue('new-live-ua-modal') || undefined,
+            playerType: getInputValue('new-live-playerType-modal') ? parseInt(getInputValue('new-live-playerType-modal'), 10) : undefined
+        };
+        
+        // 清理值为 undefined 的字段
+        Object.keys(newLive).forEach(key => newLive[key] === undefined && delete newLive[key]);
+        
+        if (!currentRulesData.lives) currentRulesData.lives = [];
+        currentRulesData.lives.unshift(newLive);
+        renderLivesTab(currentRulesData.lives);
+        showToast('直播源已添加，请记得保存！', 'success');
+        closeModalById('add-live-modal');
+}
 
 
     /**
@@ -819,6 +1002,8 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('目录和文件名不能为空！', 'error');
             return;
         }
+
+        const savePathDir = window.APP_CONFIG.DEFAULT_SAVE_PATH;
 
         const fileNameElement = document.getElementById('file-name-display');
         const originalTitle = document.title;
@@ -839,24 +1024,105 @@ document.addEventListener('DOMContentLoaded', () => {
             const baseUrl = getBaseUrl(mainJsonUrl);
             
             const discoverAndRegisterAsset = (originalPath, assetId, site = null) => {
-                if (!originalPath || typeof originalPath !== 'string') return;
-                if (site && assetId.endsWith('-ext') && (originalPath.startsWith('http://127.0.0.1') || originalPath.startsWith('http://localhost'))) return;
-                if (site && (site.type === 1 || site.type === 2)) return;
-                if (site && assetId.endsWith('-api') && site.type !== 3) return;
-                if (site && assetId.endsWith('-ext') && (site.api === 'csp_AppYs' || site.api === 'csp_AppYsV2')) return;
+                if (site) {
+                    if (site.type !== 3 || site.api.startsWith('csp_AppYs')) return;
+                }
+
+                if (typeof originalPath === 'object' && originalPath !== null) {
+                    for (const key in originalPath) {
+                        if (typeof originalPath[key] === 'string') {
+                            discoverAndRegisterAsset(originalPath[key], `${assetId}-${key}`, site);
+                        }
+                    }
+                    return;
+                }
+
+                if (typeof originalPath !== 'string' || !originalPath) return;
+                if (originalPath.startsWith('http://127.0.0.1')) return;
+                if (originalPath.includes('$$$') || originalPath.includes('|') || originalPath.includes('}')) return;
+
                 
                 const parsedPath = parseAssetPath(originalPath);
                 const isLocalRelative = parsedPath.startsWith('./');
                 const isRemote = parsedPath.startsWith('http');
 
                 if (isLocalRelative || isRemote) {
-                    const sourceUrl = isLocalRelative ? new URL(parsedPath, baseUrl).href : parsedPath;
+                    let filename;
+                    let sourceUrl = parsedPath;
+
+                    if (isRemote) {
+                        try {
+                            let cleanUrl = parsedPath;
+                            const githubIdentifier = 'https://raw.githubusercontent.com/';
+                            const githubIndex = parsedPath.indexOf(githubIdentifier);
+
+                            if (githubIndex !== -1) {
+                                cleanUrl = parsedPath.substring(githubIndex);
+                            }
+
+                            const urlObject = new URL(cleanUrl);
+                            filename = urlObject.pathname.split('/').pop();
+
+                            if (!filename) {
+                                // console.warn("无法从URL中确定文件名，已跳过:", parsedPath);
+                                return;
+                            }
+                        } catch (e) {
+                            // console.error("无法解析的远程URL，已跳过:", parsedPath, e);
+                            return;
+                        }
+                    } else { 
+                        filename = parsedPath.split('/').pop();
+                    }
+                    
+                    if(isLocalRelative) {
+                        sourceUrl = new URL(parsedPath, baseUrl).href;
+                    }
+                    
+                    let targetRelativePath = filename;
+                    const assetIdParts = assetId.split('-');
+                    const assetType = assetIdParts[2]; 
+
+                    if (assetType === 'jar') {
+                        targetRelativePath = `libs/jar/${filename}`;
+                    } 
+                    else if (assetType === 'api') {
+                        if (filename.endsWith('.js')) {
+                            targetRelativePath = `libs/js/${filename}`;
+                        } else if (filename.endsWith('.py')) {
+                            targetRelativePath = `libs/py/${filename}`;
+                        }
+                    } 
+                    else if (assetType === 'ext') {
+                        if (filename.endsWith('.js')) {
+                            targetRelativePath = `lib/js/${filename}`;
+                        } else if (filename.endsWith('.py')) {
+                            targetRelativePath = `lib/py/${filename}`;
+                        } else {
+                            if (site && site.api && typeof site.api === 'string') {
+                                const apiValue = site.api;
+                                if (apiValue.endsWith('.js')) {
+                                    targetRelativePath = `lib/js/${filename}`;
+                                } else if (apiValue.endsWith('.py')) {
+                                    targetRelativePath = `lib/py/${filename}`;
+                                } else if (apiValue.startsWith('csp_')) {
+                                    const apiSubdir = apiValue.substring(4).toLowerCase();
+                                    if (apiSubdir) {
+                                        targetRelativePath = `lib/${apiSubdir}/${filename}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    sourceUrl = applyGitHubProxy(sourceUrl);
+
                     const alreadyExists = assetsToDownload.some(task => task.sourceUrl === sourceUrl);
                     if (!alreadyExists) {
                         assetsToDownload.push({
                             sourceUrl: sourceUrl,
                             originalPath: originalPath,
-                            targetRelativePath: parsedPath,
+                            targetRelativePath: targetRelativePath,
                             id: assetId
                         });
                         downloadStatus[assetId] = 'pending';
@@ -893,11 +1159,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.append('action', 'download_asset');
                     formData.append('source_url', task.sourceUrl);
                     formData.append('target_dir', targetDir);
-                    formData.append('relative_path', task.targetRelativePath);
+                    formData.append('relative_path', decodeURIComponent(task.targetRelativePath));
                     const response = await fetch('index.php/Proxy/downloadAsset', { method: 'POST', body: formData });
                     if (!response.ok) throw new Error(`服务器返回错误: ${response.status}`);
+                    
                     const result = await response.json();
                     if (!result.success) throw new Error(result.message);
+
+                    if (result.filePath) {
+                        let returnedPath = result.filePath.replace(/\\/g, '/').trim();
+                        const searchPrefix = `${savePathDir}/${targetDir}/`;
+                        const prefixIndex = returnedPath.indexOf(searchPrefix);
+
+                        if (prefixIndex !== -1) {
+                            const relativePart = returnedPath.substring(prefixIndex + searchPrefix.length);
+                            task.savedPath = './' + relativePart;
+                        } else {
+                            task.savedPath = returnedPath; 
+                        }
+                    }
+                    
                     downloadStatus[task.id] = 'downloaded';
                 } catch (error) {
                     downloadStatus[task.id] = 'failed';
@@ -912,9 +1193,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const remapPath = (originalPath) => {
+                if (typeof originalPath === 'object' && originalPath !== null) {
+                    const newExtObject = { ...originalPath };
+                    for (const key in newExtObject) {
+                        if (typeof newExtObject[key] === 'string') {
+                            newExtObject[key] = remapPath(newExtObject[key]);
+                        }
+                    }
+                    return newExtObject;
+                }
+
+                if (typeof originalPath !== 'string') return originalPath;
+
                 if (downloadFailures.has(originalPath)) return originalPath;
                 for (const asset of assetsToDownload) {
-                    if (asset.originalPath === originalPath) return asset.targetRelativePath;
+                    if (asset.originalPath === originalPath) {
+                        if (asset.savedPath) {
+                            return asset.savedPath;
+                        }
+                        return asset.targetRelativePath;
+                    }
                 }
                 return originalPath;
             };
@@ -925,8 +1223,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 site.ext = remapPath(site.ext);
                 site.api = remapPath(site.api);
             });
-
-            const finalContentToSave = JSON.stringify(dataToSave, null, 2);
+            currentRulesData = dataToSave; 
+            const finalContentToSave = JSON.stringify(currentRulesData, null, 2);
             const saveFormData = new FormData();
             saveFormData.append('action', 'save_config');
             saveFormData.append('dir', targetDir);
@@ -947,9 +1245,9 @@ document.addEventListener('DOMContentLoaded', () => {
             await showDialog({ type: 'alert', title: '下载报告', message: reportMessage, okText: '关闭' });
 
             const currentPath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
-            const newUrl = `${window.location.origin}${currentPath}/box/${targetDir}/${targetFilename}`;
+            const newUrl = `${window.location.origin}${currentPath}/${savePathDir}/${targetDir}/${targetFilename}`;
             jsonUrlInput.value = newUrl;
-            addToUrlHistory(newUrl);
+            updateLocalStorageHistory('urlHistory', newUrl);
 
         } catch (error) {
             showToast(`下载流程发生严重错误: ${error.message}`, 'error');
@@ -983,18 +1281,18 @@ document.addEventListener('DOMContentLoaded', () => {
         fullWidthFields: ['url', 'ext']
     };
     const liveConfig = {
-        translations: { name: '名称', type: '类型', pass: 'Pass', url: '链接', epg: 'EPG', logo: 'Logo' },
-        fieldOrder: ['name', 'type', 'pass', 'url', 'epg', 'logo'],
+        translations: { name: '名称', type: '类型', pass: 'Pass', url: '链接', epg: 'EPG', logo: 'Logo', ua: 'User-Agent', playerType: '播放器类型' },
+        fieldOrder: ['name', 'type', 'pass', 'url', 'epg', 'logo', 'ua', 'playerType'],
         booleanFields: ['pass'],
-        textareaFields: ['url', 'epg', 'logo'],
-        fullWidthFields: ['url', 'epg', 'logo']
+        textareaFields: [],
+        fullWidthFields: ['url', 'epg', 'logo', 'ua', 'playerType']
     };
     const filterConfig = {
-        translations: { host: '主机名', rule: '规则列表', name: '规则名称', hosts: '主机列表' },
-        fieldOrder: ['name', 'host', 'hosts', 'rule'],
+        translations: { name: 'name', host: 'host', hosts: 'hosts', rule: 'rule', regex: 'regex' },
+        fieldOrder: ['name', 'host', 'hosts', 'rule', 'regex'],
         booleanFields: [],
-        textareaFields: ['host', 'hosts', 'rule'],
-        fullWidthFields: ['host', 'hosts', 'rule']
+        textareaFields: ['host', 'hosts', 'rule', 'regex'],
+        fullWidthFields: ['host', 'hosts', 'rule', 'regex']
     };
     
     /**
@@ -1023,11 +1321,36 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             const action = actionButton.dataset.action;
             if (action === 'copy-rule') {
-                ruleClipboard.data = JSON.parse(JSON.stringify(itemData));
-                ruleClipboard.sourceBaseDir = currentConfigBaseDir;
-                showToast(`规则 “${itemData.name}” 已复制到剪贴板`, 'success');
+                let clipboardItems = [];
+                const existingClipboard = localStorage.getItem('global_rule_clipboard');
+                if (existingClipboard) {
+                    try {
+                        const parsed = JSON.parse(existingClipboard);
+                        if (Array.isArray(parsed)) {
+                            clipboardItems = parsed;
+                        }
+                    } catch (e) { }
+                }
+
+                const newClipboardData = {
+                    data: JSON.parse(JSON.stringify(itemData)),
+                    sourceBaseDir: currentConfigBaseDir
+                };
+                
+                const itemExists = clipboardItems.some(item => item.data.key === newClipboardData.data.key && item.sourceBaseDir === newClipboardData.sourceBaseDir);
+                if (!itemExists) {
+                    clipboardItems.unshift(newClipboardData);
+                }
+
+                if (clipboardItems.length > 10) {
+                    clipboardItems = clipboardItems.slice(0, 10);
+                }
+
+                localStorage.setItem('global_rule_clipboard', JSON.stringify(clipboardItems));
+                showToast(`规则 “${itemData.name}” 已复制`, 'success');
                 return;
             }
+
             if (action === 'check-rule') {
                 checkRuleHealth(itemData);
                 return;
@@ -1052,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const savePathDir = (window.APP_CONFIG.DEFAULT_SAVE_PATH || './box/').replace(/^\.\/|\/$/g, '');
+                const savePathDir = window.APP_CONFIG.DEFAULT_SAVE_PATH;
                 const urlPathSegment = `/${savePathDir}/`;
                 const isLocal = jsonUrlInput.value.includes(window.location.origin) && jsonUrlInput.value.includes(urlPathSegment);
                 let fileUrlPath;
@@ -1061,7 +1384,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const mainConfigPath = new URL(jsonUrlInput.value).pathname;
                     const baseDir = mainConfigPath.substring(0, mainConfigPath.lastIndexOf('/'));
                     const relativeFilePath = targetFile.replace('./', '');
-                    fileUrlPath = `${baseDir}/${relativeFilePath}`.replace('/box/', '');
+                    fileUrlPath = `${baseDir}/${relativeFilePath}`.replace(urlPathSegment, '');
 
                     try {
                         const response = await fetch(`index.php/Proxy/checkFileExists?path=${encodeURIComponent(fileUrlPath)}`);
@@ -1075,16 +1398,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                 } else {
-                    const targetDir = document.getElementById('download-dir-input').value.trim();
                     const targetStatusId = /\.(json|js|py)$/i.test(extPath) ? `site-${index}-ext` : `site-${index}-jar`;
                     if (downloadStatus[targetStatusId] !== 'downloaded') {
                         showToast('请先下载此规则文件才能进行编辑', 'error');
                         return;
                     }
-                    if (!targetDir) {
-                        showToast('下载目录未设置，无法确定文件路径', 'error');
+
+                    const targetDirInput = document.getElementById('download-dir-input');
+                    if (!targetDirInput || !targetDirInput.value.trim()) {
+                        showToast('下载目录未设置，请先点击“下载”按钮设置目录后，再进行编辑', 'error');
                         return;
                     }
+                    const targetDir = targetDirInput.value.trim();
                     fileUrlPath = `${targetDir}/${targetFile.replace('./', '')}`;
                 }
                 
@@ -1099,7 +1424,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     showMin: false
                 });
 
-                // editorModal.open();
             }
         } else {
             openDetailsModal(itemData, itemType, index);
@@ -1111,43 +1435,33 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {object} siteData - 被点击的爬虫规则对象
      */
     async function checkRuleHealth(siteData) {
-        if (!siteData.ext && !siteData.jar) {
-            showToast('该规则没有配置 ext 或 jar 链接，无需检测。', 'info');
-            return;
-        }
-    
-        // 打开弹窗并显示初始加载状态
         showDialog({
             type: 'alert',
             title: `检测报告 - ${siteData.name}`,
             message: '<div id="health-check-results"><div class="loading-spinner"></div><p style="text-align:center;">正在发现资源，请稍候...</p></div>',
             okText: '关闭'
         }).catch(() => {});
-    
+
         const resultsContainer = document.getElementById('health-check-results');
-    
+
         try {
-            // 请求后端发现所有待检测资源
             const discoverFormData = new FormData();
-            discoverFormData.append('extPath', siteData.ext || '');
-            discoverFormData.append('jarPath', siteData.jar || '');
+            discoverFormData.append('siteObject', JSON.stringify(siteData));
             discoverFormData.append('baseConfigUrl', jsonUrlInput.value);
-    
+
             const discoverResponse = await fetch('index.php/Proxy/discoverAssets', {
                 method: 'POST',
                 body: discoverFormData
             });
             const discoverResult = await discoverResponse.json();
-    
+
             if (!discoverResult.success || discoverResult.assets.length === 0) {
                 resultsContainer.innerHTML = `<p>未找到任何可检测的资源。</p>`;
                 return;
             }
-    
-            // 渲染初始列表，全部显示“检测中”
+
             let listHtml = '<ul style="list-style:none; padding:0; margin:0;">';
             discoverResult.assets.forEach((asset, index) => {
-                // 为每个列表项创建一个唯一的ID
                 const assetId = 'asset-check-' + index;
                 listHtml += `
                     <li id="${assetId}" style="display:flex; justify-content:space-between; align-items:center; padding: 6px 0; border-bottom: 1px solid #eee;">
@@ -1158,32 +1472,36 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             listHtml += '</ul>';
             resultsContainer.innerHTML = listHtml;
-            resultsContainer.querySelector('ul').style.maxHeight = '40vh';
-            resultsContainer.querySelector('ul').style.overflowY = 'auto';
-    
-    
-            // 遍历列表，逐个向后端请求检测
+            
+            const ulElement = resultsContainer.querySelector('ul');
+            if (ulElement) {
+                ulElement.style.maxHeight = '40vh';
+                ulElement.style.overflowY = 'auto';
+                ulElement.style.overscrollBehavior = 'contain';
+            }
+
+
+            /** @description 遍历列表，逐个向后端请求检测 */
             for (let i = 0; i < discoverResult.assets.length; i++) {
                 const asset = discoverResult.assets[i];
                 const assetId = 'asset-check-' + i;
                 const listItem = document.getElementById(assetId);
                 const statusElement = listItem.querySelector('strong');
-    
+
                 const testFormData = new FormData();
                 testFormData.append('asset', asset);
                 testFormData.append('baseConfigUrl', jsonUrlInput.value);
-    
+
                 try {
                     const testResponse = await fetch('index.php/Proxy/testSingleAsset', {
                         method: 'POST',
                         body: testFormData
                     });
                     const testResult = await testResponse.json();
-    
+
                     if (testResult.success) {
                         const { status } = testResult.result;
                         statusElement.textContent = status;
-                        // 根据状态码更新颜色
                         if (status === '存在' || (status >= 200 && status < 400)) {
                             statusElement.className = 'health-status status-success';
                         } else if (status >= 400 && status < 500) {
@@ -1215,8 +1533,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveBtn = document.getElementById('saveBtn');
     if (saveBtn) {
         saveBtn.addEventListener('click', () => {
+            const spiderUrl = document.getElementById('spider-url')?.value.trim();
+
+            if (!spiderUrl) {
+                showToast('爬虫Jar (spider) 不能为空，请先选择一个文件。', 'error');
+                return;
+            }
+
             const url = jsonUrlInput.value.trim();
-            const savePathDir = (window.APP_CONFIG.DEFAULT_SAVE_PATH || './box/').replace(/^\.\/|\/$/g, '');
+            const savePathDir = window.APP_CONFIG.DEFAULT_SAVE_PATH;
             const urlPathSegment = `/${savePathDir}/`;
 
             if (!url.startsWith(window.location.origin) || !url.includes(urlPathSegment)) {
@@ -1224,7 +1549,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const pathParts = url.split('/box/');
+            const pathParts = url.split(urlPathSegment);
             const relativePath = pathParts.length > 1 ? pathParts[1] : null;
             if (!relativePath) {
                 showToast('无法从URL中解析出有效的文件路径！', 'error');
@@ -1243,7 +1568,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('filePath', relativePath);
             formData.append('fileContent', fileContent);
 
-            showToast('正在保存...', 'info');
+            // showToast('正在保存...', 'info');
             fetch('index.php/Edit/save', {
                 method: 'POST',
                 body: formData
@@ -1262,7 +1587,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    document.getElementById('selectFileBtn').addEventListener('click', openFileBrowser);
+    document.getElementById('selectFileBtn').addEventListener('click', () => {
+        openFileBrowser();
+    });
     document.getElementById('downloadRulesBtn').addEventListener('click', () => {
         if (Object.keys(currentRulesData).length === 0) {
             showToast('请先加载一个配置文件！', 'error');
@@ -1275,15 +1602,15 @@ document.addEventListener('DOMContentLoaded', () => {
             footer: '<button id="start-download-btn" class="btn primary-btn">开始下载</button>'
         });
     });
-    document.getElementById('aiHelperBtn').addEventListener('click', () => {
-        new Modal({
-            id: 'ai-helper-modal',
-            title: 'AI 帮写小助手',
-            content: templates.aiHelperModal(),
-        });
-    });
+    // document.getElementById('aiHelperBtn').addEventListener('click', () => {
+    //     new Modal({
+    //         id: 'ai-helper-modal',
+    //         title: 'AI 帮写小助手',
+    //         content: templates.aiHelperModal(),
+    //     });
+    // });
     document.getElementById('historyBtn').addEventListener('click', () => {
-        const history = getUrlHistory();
+        const history = getLocalStorageItem('urlHistory', []);
         let listHtml = '<ul id="historyList">';
         if (history.length === 0) {
             listHtml += '<li>没有历史记录。</li>';
@@ -1301,11 +1628,129 @@ document.addEventListener('DOMContentLoaded', () => {
             footer: '<button id="clearHistoryBtn" class="btn danger-btn">清空历史记录</button>'
         });
     });
-    
+
+    // 全局设置弹窗
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+        const currentProxy = localStorage.getItem('githubProxyUrl') || '';
+        const globalUA = localStorage.getItem('globalUserAgent') || 'okhttp/3.15';
+
+        new Modal({
+            id: 'settings-modal',
+            title: '全局设置',
+            content: templates.settingsModal({ 
+                proxyUrl: currentProxy,
+                globalUA: globalUA
+            }),
+            footer: '<button id="save-settings-btn" class="btn primary-btn">保存</button>'
+        });
+
+        setTimeout(() => {
+            const modalBody = document.getElementById('settings-modal').querySelector('.modal-main-content');
+            
+            modalBody.querySelector('.tabs').addEventListener('click', (e) => {
+                if (e.target.matches('.tab-btn')) {
+                    const tabId = e.target.dataset.tab;
+                    modalBody.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                    modalBody.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+                    e.target.classList.add('active');
+                    document.getElementById(tabId).style.display = 'block';
+                }
+            });
+
+            const variablesContainer = document.getElementById('variable-defaults-inputs');
+            const savedVariables = getLocalStorageItem('global_variables', {});
+            const allVariables = ['wd', 'SearchPg', 'cateId', 'class', 'area', 'year', 'lang', 'by', 'catePg'];
+            
+            allVariables.forEach(varName => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'details-item';
+
+                const label = document.createElement('label');
+                label.className = 'details-label';
+                label.textContent = `{${varName}}`;
+                label.htmlFor = `global-var-${varName}`;
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = `global-var-${varName}`;
+                input.className = 'details-input';
+                input.setAttribute('data-variable-name', varName);
+                input.value = savedVariables[varName] || '';
+
+                itemDiv.appendChild(label);
+                itemDiv.appendChild(input);
+                variablesContainer.appendChild(itemDiv);
+            });
+
+            const columnSelect = document.getElementById('settings-column-select');
+            if (columnSelect) {
+                columnSelect.value = localStorage.getItem('gridColumns') || '2';
+            }
+
+            document.getElementById('save-settings-btn').addEventListener('click', () => {
+                const newProxy = document.getElementById('proxy-url-input').value.trim();
+                if (newProxy && !newProxy.startsWith('http')) {
+                    showToast('GitHub 加速域名格式不正确。', 'error');
+                    return;
+                }
+                localStorage.setItem('githubProxyUrl', newProxy);
+
+                const newGlobalUA = document.getElementById('global-ua-input').value.trim();
+                localStorage.setItem('globalUserAgent', newGlobalUA);
+
+                if (columnSelect) {
+                    localStorage.setItem('gridColumns', columnSelect.value);
+                    updateGridColumns();
+                }
+
+                const newVariables = {};
+                const inputs = document.querySelectorAll('#variable-defaults-inputs input[data-variable-name]');
+                inputs.forEach(input => {
+                    const varName = input.getAttribute('data-variable-name');
+                    if (varName) {
+                        newVariables[varName] = input.value.trim();
+                    }
+                });
+                localStorage.setItem('global_variables', JSON.stringify(newVariables));
+                
+                showToast('全局设置已保存！', 'success');
+                closeModalById('settings-modal');
+            });
+            
+            document.getElementById('clear-cache-btn').addEventListener('click', async () => {
+                try {
+                    await showDialog({
+                        type: 'confirm',
+                        title: '确认操作',
+                        message: '您确定要清空所有代理缓存吗？此操作将导致下次加载规则时重新从源服务器获取。'
+                    });
+                    
+                    const response = await fetch('index.php/Proxy/clearCache', { method: 'POST' });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showToast(result.message, 'success');
+                    } else {
+                        throw new Error(result.message);
+                    }
+
+                } catch (error) {
+                    if (error && error.message) {
+                        showToast(`操作失败: ${error.message}`, 'error');
+                    } else {
+                        showToast('操作已取消', 'info');
+                    }
+                }
+            });
+
+        }, 0);
+    });
+
     document.getElementById('online-edit-btn').addEventListener('click', () => {
         const url = jsonUrlInput.value.trim();
-        if (url.startsWith(window.location.origin) && url.includes('/box/')) {
-            const pathParts = new URL(url).pathname.split('/box/');
+        const urlPathSegment = `/${window.APP_CONFIG.DEFAULT_SAVE_PATH}/`;
+        if (url.startsWith(window.location.origin) && url.includes(urlPathSegment)) {
+            const pathParts = new URL(url).pathname.split(urlPathSegment);
             if (pathParts.length > 1) {
                 const filePath = pathParts[1];
                 window.open(`index.php/Edit?file=${encodeURIComponent(filePath)}`, '_blank');
@@ -1333,13 +1778,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('column-select').addEventListener('change', updateGridColumns);
     localFileInput.addEventListener('change', loadAndRenderRulesFromFile);
 
     document.body.addEventListener('click', async (e) => {
         if (e.target.id === 'add-spider-btn-modal') addSpider();
         if (e.target.id === 'add-parse-btn-modal') addParse();
         if (e.target.id === 'add-filter-btn-modal') addFilterRule();
+        if (e.target.id === 'add-live-btn-modal') addLiveRule();
         
         if (e.target.id === 'modal-save-btn') saveModalChanges();
         if (e.target.classList.contains('select-api-btn-edit')) {
@@ -1349,64 +1794,133 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         if (e.target.id === 'start-download-btn') startDownloadProcess();
-        if (e.target.id === 'select-local-file-btn') {
-            closeModalById('file-browser-modal');
-            localFileInput.click();
-        }
+        
         if (e.target.id === 'open-selected-file-btn') openSelectedServerFile();
-        if (e.target.id === 'ai-helper-close-btn') closeModalById('ai-helper-modal');
-
-        // 监听 "选择" Jar 文件按钮
-        if (e.target.classList.contains('select-jar-btn')) {
-            // 触发它旁边的隐藏的 file input
-            e.target.closest('.input-with-buttons').querySelector('.jar-file-input').click();
+        if (e.target.id === 'create-new-config-btn') {
+            handleFileAction('new-config', '', '根目录'); // path为空代表根目录
         }
 
-        // 监听 "上传" Jar 文件按钮
+        // 选择爬虫 Jar 文件
+        if (e.target.id === 'select-spider-btn') {
+            openFileBrowser({
+                mode: 'select',
+                filter: 'jar|png|bmp|jpg|jpeg|gif',
+                onSelect: (selectedPath) => {
+                    const mainConfigUrl = jsonUrlInput.value.trim();
+                    const pathParts = mainConfigUrl.split(`/${window.APP_CONFIG.DEFAULT_SAVE_PATH}/`);
+                    let mainConfigDir = '';
+                    if (pathParts.length > 1) {
+                        const fullPath = pathParts[1];
+                        const lastSlashIndex = fullPath.lastIndexOf('/');
+                        if (lastSlashIndex !== -1) {
+                            mainConfigDir = fullPath.substring(0, lastSlashIndex + 1);
+                        }
+                    }
+
+                    let relativePath;
+                    if (mainConfigDir && selectedPath.startsWith(mainConfigDir)) {
+                        relativePath = './' + selectedPath.substring(mainConfigDir.length);
+                    } else {
+
+                        relativePath = './' + selectedPath;
+                    }
+
+                    const spiderInput = document.getElementById('spider-url');
+                    if (spiderInput) {
+                        spiderInput.value = relativePath;
+                    }
+                }
+            });
+        }
+
+        /** @description 监听 "选择" Jar 文件按钮 （服务器内选中）*/
+        if (e.target.classList.contains('select-jar-btn')) {
+            const container = e.target.closest('.input-with-buttons');
+            const jarUrlInput = container.querySelector('textarea, input');
+
+            openFileBrowser({
+                mode: 'select',
+                filter: 'jar',
+                onSelect: (selectedPath) => {
+                    const mainConfigUrl = jsonUrlInput.value.trim();
+                    const pathParts = mainConfigUrl.split(`/${window.APP_CONFIG.DEFAULT_SAVE_PATH}/`);
+                    let mainConfigDir = '';
+                    if (pathParts.length > 1) {
+                        const fullPath = pathParts[1];
+                        const lastSlashIndex = fullPath.lastIndexOf('/');
+                        if (lastSlashIndex !== -1) {
+                            mainConfigDir = fullPath.substring(0, lastSlashIndex + 1);
+                        }
+                    }
+
+                    let relativePath;
+                    if (mainConfigDir && selectedPath.startsWith(mainConfigDir)) {
+                        relativePath = './' + selectedPath.substring(mainConfigDir.length);
+                    } else {
+                        relativePath = './' + selectedPath;
+                    }
+                    
+                    if (jarUrlInput) {
+                        jarUrlInput.value = relativePath;
+                    }
+                }
+            });
+        }
+
+        /** @description 监听 "上传" Jar 文件按钮 (本地上传)*/
         if (e.target.classList.contains('upload-jar-btn')) {
             const container = e.target.closest('.input-with-buttons');
             const fileInput = container.querySelector('.jar-file-input');
             const jarUrlInput = container.querySelector('textarea, input');
 
-            const savePathDir = (window.APP_CONFIG.DEFAULT_SAVE_PATH || './box/').replace(/^\.\/|\/$/g, '');
+            // 检查是否已加载本地配置文件，这是上传的前提
+            const savePathDir = window.APP_CONFIG.DEFAULT_SAVE_PATH;
             const urlPathSegment = `/${savePathDir}/`;
             if (!jsonUrlInput.value.includes(urlPathSegment)) {
                 showToast('请先将主配置下载到本地后再上传资源', 'error');
                 return;
             }
-
-            if (fileInput.files.length === 0) {
-                showToast('请先选择一个 .jar 文件', 'warning');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('jarFile', fileInput.files[0]);
-
-            const configRelativePath = jsonUrlInput.value.split(urlPathSegment)[1];
-            formData.append('configPath', configRelativePath);
             
-            showToast('正在上传 Jar 文件...', 'info');
-            fetch('index.php/Proxy/uploadJar', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(result => {
-                if (result.success) {
-                    showToast(result.message, 'success');
-                    jarUrlInput.value = result.filePath; // 自动填充返回的路径
-                    fileInput.value = ''; // 清空文件选择，以便可以重复上传
-                } else {
-                    throw new Error(result.message);
+            // 每次点击都清空之前的事件监听，防止重复触发
+            fileInput.onchange = null;
+            
+            // 为文件选择添加一次性的 change 事件监听器
+            fileInput.onchange = async () => {
+                if (fileInput.files.length === 0) return;
+
+                const formData = new FormData();
+                formData.append('jarFile', fileInput.files[0]);
+
+                const configRelativePath = jsonUrlInput.value.split(urlPathSegment)[1];
+                formData.append('configPath', configRelativePath);
+                
+                showToast('正在上传 Jar 文件...', 'info');
+                try {
+                    const response = await fetch('index.php/Proxy/uploadJar', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showToast(result.message, 'success');
+                        if(jarUrlInput) jarUrlInput.value = result.filePath;
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (err) {
+                    showToast(`上传失败: ${err.message}`, 'error');
+                } finally {
+                    // 清空文件选择，以便可以重复上传同一个文件
+                    fileInput.value = '';
                 }
-            })
-            .catch(err => {
-                showToast(`上传失败: ${err.message}`, 'error');
-            });
+            };
+
+            // 触发文件选择框
+            fileInput.click();
         }
 
-        // 处理历史记录项的点击
+        /** @description 处理历史记录项的点击 */
         if (e.target && e.target.classList.contains('history-item')) {
             const url = e.target.dataset.url;
             jsonUrlInput.value = url;
@@ -1415,7 +1929,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadAndRenderRulesFromUrl();
         }
 
-        // 处理清空历史记录按钮的点击
+        /** @description 处理清空历史记录按钮的点击 */
         if (e.target && e.target.id === 'clearHistoryBtn') {
             localStorage.removeItem('urlHistory');
             const historyList = document.getElementById('historyList');
@@ -1478,7 +1992,57 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!tvboxIp || !keyword) return;
             await handlePush('search', keyword, tvboxIp);
         }
+        
+        if (e.target.id === 'encrypt-config-btn') {
+            const url = jsonUrlInput.value.trim();
+            const savePathDir = window.APP_CONFIG.DEFAULT_SAVE_PATH;
+            const urlPathSegment = `/${savePathDir}/`;
 
+            if (!url.startsWith(window.location.origin) || !url.includes(urlPathSegment)) {
+                showToast('错误：只能对保存在服务器上的文件进行加密。', 'error');
+                return;
+            }
+
+            const relativePath = url.split(urlPathSegment)[1];
+            if (!relativePath) {
+                showToast('无法从URL中解析出有效的文件路径！', 'error');
+                return;
+            }
+
+            // showToast('正在请求加密...', 'info');
+            try {
+                const formData = new FormData();
+                formData.append('path', relativePath);
+
+                const response = await fetch('index.php/Proxy/encryptConfig', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    await showDialog({
+                        type: 'alert',
+                        title: '加密成功',
+                        message: `
+                            <p>加密后的文件链接如下，单击即可全选：</p>
+                            <textarea
+                                      onclick="this.select();" 
+                                      style="width: 100%; min-height: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 14px; background-color: #f9f9f9; resize: none; box-sizing: border-box;">${result.encryptedUrl}</textarea>
+                        `,
+                        okText: '关闭'
+                    });
+
+                    if (document.getElementById('file-browser-modal')) {
+                        refreshFileBrowser(null, getExpandedPaths());
+                    }
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                showToast(`加密失败: ${error.message}`, 'error');
+            }
+        }
         
         if (e.target.id === 'filter-sites-btn') {
             const sites = currentRulesData.sites || [];
@@ -1601,10 +2165,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const dirHeader = e.target.closest('.file-list-item.is-dir');
+        const dirHeader = e.target.closest('.file-list-item.is-dir .file-info-section');
         if (dirHeader) {
-            const parentLi = dirHeader.parentElement;
-            if (parentLi && parentLi.classList.contains('dir')) {
+            const parentLi = dirHeader.closest('li.dir');
+            if (parentLi) {
                 parentLi.classList.toggle('collapsed');
                 const icon = dirHeader.querySelector('.toggle-icon');
                 if (icon) icon.textContent = parentLi.classList.contains('collapsed') ? '+' : '−';
@@ -1639,6 +2203,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 wrapper.style.display = isHidden ? 'block' : 'none';
                 e.target.textContent = isHidden ? '收起' : '内容';
             }
+        }
+        
+        const fileActionBtn = e.target.closest('.file-action-btn');
+        if (fileActionBtn) {
+            const action = fileActionBtn.dataset.action;
+            const li = fileActionBtn.closest('li[data-path]');
+            const path = li.dataset.path;
+            const name = li.dataset.name;
+            handleFileAction(action, path, name);
         }
 
         const deleteAllBtn = e.target.closest('.delete-all-btn');
@@ -1676,49 +2249,158 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (e.target.id === 'paste-rule-btn') {
-            if (!ruleClipboard.data) {
-                showToast('剪贴板为空，请先复制一条规则。', 'warning');
-                return;
-            }
-            
-            const newRule = JSON.parse(JSON.stringify(ruleClipboard.data));
-            
-            // 检查 key 和 name 冲突
-            let keyExists = currentRulesData.sites.some(site => site.key === newRule.key);
-            let nameExists = currentRulesData.sites.some(site => site.name === newRule.name);
-            while(keyExists || nameExists) {
-                newRule.name += '_复制';
-                newRule.key += '_copy';
-                keyExists = currentRulesData.sites.some(site => site.key === newRule.key);
-                nameExists = currentRulesData.sites.some(site => site.name === newRule.name);
-            }
-
-            showToast('正在粘贴规则并处理资源文件...', 'info');
-
             try {
-                // 检查并复制 ext 和 jar 资源文件
-                for (const key of ['ext', 'jar']) {
-                    const assetPath = newRule[key];
-                    if (assetPath && typeof assetPath === 'string' && assetPath.startsWith('./')) {
-                        const formData = new FormData();
-                        formData.append('sourceBasePath', ruleClipboard.sourceBaseDir);
-                        formData.append('targetBasePath', currentConfigBaseDir);
-                        formData.append('assetRelativePath', assetPath);
-
-                        const response = await fetch('index.php/Proxy/copyAsset', { method: 'POST', body: formData });
-                        const result = await response.json();
-                        if (!result.success) {
-                            throw new Error(result.message);
+                let internalClipboardItems = [];
+                const internalClipboardRaw = localStorage.getItem('global_rule_clipboard');
+                if (internalClipboardRaw) {
+                    try {
+                        const parsed = JSON.parse(internalClipboardRaw);
+                        if (Array.isArray(parsed)) {
+                            internalClipboardItems = parsed;
                         }
-                    }
+                    } catch (e) { }
                 }
 
-                currentRulesData.sites.unshift(newRule);
-                renderSitesTab(currentRulesData.sites);
-                showToast(`规则 “${newRule.name}” 已成功粘贴！`, 'success');
+                const modalContent = templates.pasteModal({ internalClipboardRules: internalClipboardItems });
+
+                const pasteModal = new Modal({
+                    title: '粘贴规则',
+                    content: modalContent,
+                    id: 'paste-rule-modal',
+                    width: '400px',
+                    height: '500px',
+                    showMin: false,
+                    showMax: false,
+                    showFull: false,
+                    footer: `
+                        <button class="btn secondary-btn" onclick="closeModalById('paste-rule-modal')">取消</button>
+                        <button class="btn primary-btn" id="confirm-manual-paste-btn">确认粘贴</button>
+                    `
+                });
+
+                const modalBody = pasteModal.getBodyElement();
+                const modalFooter = pasteModal.getFooterElement();
+
+                modalBody.addEventListener('click', async (event) => {
+                    const target = event.target.closest('.paste-internal-item-btn');
+                    if (!target) return;
+
+                    event.preventDefault();
+                    
+                    const index = parseInt(target.getAttribute('data-index'), 10);
+                    const itemIndex = internalClipboardItems.findIndex((item, idx) => idx === index);
+
+                    if (itemIndex === -1) {
+                        showToast('要粘贴的规则无效或已改变！', 'error');
+                        return;
+                    }
+                    const itemToPaste = internalClipboardItems[itemIndex];
+
+                    showToast('正在粘贴规则并处理资源文件...', 'info');
+                    const newRule = JSON.parse(JSON.stringify(itemToPaste.data));
+
+                    let keyExists = currentRulesData.sites.some(site => site.key === newRule.key);
+                    let nameExists = currentRulesData.sites.some(site => site.name === newRule.name);
+                    while (keyExists || nameExists) {
+                        newRule.name += '_复制';
+                        newRule.key += '_copy';
+                        keyExists = currentRulesData.sites.some(site => site.key === newRule.key);
+                        nameExists = currentRulesData.sites.some(site => site.name === newRule.name);
+                    }
+
+                    try {
+                        for (const key of ['ext', 'jar', 'api']) {
+                            const assetPath = newRule[key];
+                            if (assetPath && typeof assetPath === 'string' && assetPath.startsWith('./')) {
+                                const formData = new FormData();
+                                formData.append('sourceBasePath', itemToPaste.sourceBaseDir);
+                                formData.append('targetBasePath', currentConfigBaseDir);
+                                formData.append('assetRelativePath', assetPath);
+                                const response = await fetch('index.php/Proxy/copyAsset', { method: 'POST', body: formData });
+                                const result = await response.json();
+                                if (!result.success) throw new Error(`复制资源 ${assetPath} 失败: ${result.message}`);
+                            }
+                        }
+                        currentRulesData.sites.unshift(newRule);
+                        renderSitesTab(currentRulesData.sites);
+                        showToast(`规则 “${newRule.name}” 已成功粘贴！`, 'success');
+                        
+                        internalClipboardItems.splice(itemIndex, 1);
+                        localStorage.setItem('global_rule_clipboard', JSON.stringify(internalClipboardItems));
+
+                        if (internalClipboardItems.length > 0) {
+                            const listItem = target.closest('li');
+                            if (listItem) {
+                                listItem.style.transition = 'opacity 0.3s, transform 0.3s';
+                                listItem.style.opacity = '0';
+                                listItem.style.transform = 'scale(0.95)';
+                                setTimeout(() => {
+                                    listItem.remove();
+                                    const remainingItems = modalBody.querySelectorAll('.paste-internal-item-btn');
+                                    remainingItems.forEach((btn, newIndex) => {
+                                        btn.setAttribute('data-index', newIndex);
+                                    });
+                                }, 300);
+                            }
+                        } else {
+                            pasteModal.close();
+                        }
+
+                    } catch (assetError) {
+                        showToast(`粘贴失败: ${assetError.message}`, 'error');
+                    }
+                });
+
+                const manualPasteBtn = modalFooter.querySelector('#confirm-manual-paste-btn');
+                manualPasteBtn.addEventListener('click', () => {
+                    const textarea = modalBody.querySelector('#paste-content-textarea');
+                    if (!textarea || !textarea.value.trim()) {
+                        pasteModal.close();
+                        return;
+                    }
+                    
+                    const pastedText = textarea.value.trim();
+                    let rulesToAdd = [];
+                    try {
+                        const parsedData = JSON.parse(pastedText);
+                        if (Array.isArray(parsedData)) rulesToAdd = parsedData;
+                        else if (typeof parsedData === 'object' && parsedData !== null) rulesToAdd.push(parsedData);
+                    } catch (e) {
+                        showToast('粘贴的内容不是有效的JSON格式！', 'error'); return;
+                    }
+
+                    if (rulesToAdd.length === 0) {
+                        showToast('未能从粘贴内容中解析出有效规则。', 'info'); return;
+                    }
+                    
+                    let addedCount = 0;
+                    for (let i = rulesToAdd.length - 1; i >= 0; i--) {
+                        const rule = rulesToAdd[i];
+                        if (rule && rule.key && rule.name) {
+                            const newRule = JSON.parse(JSON.stringify(rule));
+                            let keyExists = currentRulesData.sites.some(site => site.key === newRule.key);
+                            let nameExists = currentRulesData.sites.some(site => site.name === newRule.name);
+                            while (keyExists || nameExists) {
+                                newRule.name += '_复制'; newRule.key += '_copy';
+                                keyExists = currentRulesData.sites.some(site => site.key === newRule.key);
+                                nameExists = currentRulesData.sites.some(site => site.name === newRule.name);
+                            }
+                            currentRulesData.sites.unshift(newRule);
+                            addedCount++;
+                        }
+                    }
+
+                    if (addedCount > 0) {
+                        renderSitesTab(currentRulesData.sites);
+                        showToast(`成功粘贴了 ${addedCount} 条规则！`, 'success');
+                    }
+                    
+                    pasteModal.close();
+                });
 
             } catch (error) {
-                showToast(`粘贴失败: ${error.message}`, 'error');
+                console.error("创建粘贴对话框时出错:", error);
+                showToast('准备粘贴时出错。', 'error');
             }
         }
 
@@ -1774,6 +2456,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     title: '新增过滤规则',
                     content: templates.addFilterModal(),
                     footer: '<button id="add-filter-btn-modal" class="btn primary-btn">添加</button>'
+                });
+            } else if (itemType === 'lives') {
+                new Modal({
+                    id: 'add-live-modal',
+                    title: '新增直播源',
+                    content: templates.addLiveModal(),
+                    footer: '<button id="add-live-btn-modal" class="btn primary-btn">添加</button>'
                 });
             }
         }
@@ -1926,6 +2615,131 @@ document.addEventListener('DOMContentLoaded', () => {
 
         fetchApiList(1, '');
     }
+    
+    /**
+     * @description 统一处理文件管理器的各种操作（增删改、上传等）
+     * @param {string} action - 操作类型
+     * @param {string} path - 目标文件或目录的相对路径
+     * @param {string} name - 目标文件或目录的名称
+     */
+    async function handleFileAction(action, path, name) {
+        let result;
+        const encodedConfig = 'Ly8gKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKgovLyAqCi8vICogICDmraTphY3nva7mlofku7bnlLEgVFZCb3gg6KeE5YiZ5aSn5biIIChUVkJveCBSdWxlIE1hc3Rlcikg55Sf5oiQCi8vICogICDkvZzogIU6IGh0dHBzOi8vdC5tZS9DQ2ZvcmsKLy8gKiAgIOS6pOa1gee+pDogaHR0cHM6Ly90Lm1lL1RWQm94UnVsZU1hc3RlckJ1ZwovLyAqICAg6aG555uu5Zyw5Z2AOiBodHRwczovL2dpdGh1Yi5jb20veE15ZGV2L1RWQm94UnVsZU1hc3RlcgovLyAqICAg55Sf5oiQ5pe26Ze0OiB7dH0KLy8gKgovLyAqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqCnsKICAic3BpZGVyIjogIiIsCiAgInNpdGVzIjogWwogICAgewogICAgICAia2V5IjogIlNwaWRlciIsCiAgICAgICJuYW1lIjogIuiHquWKqOmHh+mbhiIsCiAgICAgICJhcGkiOiAiaHR0cDovL3lvdXJkb21haW4uY29tL2F1dG9fc3BpZGVyX2NhdHZvZC5waHAiLAogICAgICAidHlwZSI6IDEsCiAgICAgICJzZWFyY2hhYmxlIjogMSwKICAgICAgImNoYW5nZWFibGUiOiAxLAogICAgICAicXVpY2tTZWFyY2giOiAxLAogICAgICAiZmlsdGVyYWJsZSI6IDEKICAgIH0KICBdLAogICJwYXJzZXMiOiBbCiAgICB7CiAgICAgICJuYW1lIjogIuWGhee9ruWXheaOoiIsCiAgICAgICJ0eXBlIjogMCwKICAgICAgInVybCI6ICIiLAogICAgICAiZXh0IjogewogICAgICAgICJmbGFnIjogWyJzbmlmZiIsICLll4XmjqIiXQogICAgICB9CiAgICB9LAogICAgewogICAgICAibmFtZSI6ICLpgJrnlKjop6PmnpAiLAogICAgICAidHlwZSI6IDEsCiAgICAgICJ1cmwiOiAiaHR0cHM6Ly9qeC5leGFtcGxlLmNvbS8/dXJsPSIsCiAgICAgICJleHQiOiB7CiAgICAgICAgImZsYWciOiBbImNvbW1vbiIsICLpgJrnlKgiLCAi6Kej5p6QIl0KICAgICAgfQogICAgfQogIF0sCiAgImxpdmVzIjogWwogICAgewogICAgICAibmFtZSI6ICLmiJHnmoTnm7Tmkq0iLAogICAgICAidHlwZSI6IDAsCiAgICAgICJ1cmwiOiAiaHR0cHM6Ly9saXZlLmV4YW1wbGUuY29tL3BsYXlsaXN0LnR4dCIsCiAgICAgICJwbGF5ZXJUeXBlIjogMSwKICAgICAgInVhIjogIm9raHR0cC8zLjEyLjEzIgogICAgfQogIF0sCiAgInJ1bGVzIjogW10sCiAgImFkcyI6IFtdLAogICJ3YWxscGFwZXIiOiAiIiwKICAicHJveHkiOiBbCiAgICB7CiAgICAgICJuYW1lIjogIumAmueUqOS7o+eQhiIsCiAgICAgICJob3N0cyI6IFsKICAgICAgICAicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIKICAgICAgXSwKICAgICAgInVybHMiOiBbCiAgICAgICAgImh0dHA6Ly8xMjcuMC4wLjE6Nzg5MCIKICAgICAgXQogICAgfQogIF0sCiAgImhvc3RzIjogWwogICAgIm9sZC5kb21haW4uY29tPW5ldy5kb21haW4uY29tIgogIF0KfQo=';
+
+        const decodedConfigTemplate = decodeBase64Utf8(encodedConfig);
+        const emptyConfigContent = decodedConfigTemplate.replace('{t}', getFormattedLocalTime());
+
+
+        const expandedPaths = getExpandedPaths();
+
+        const performFetch = async (url, body) => {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast(data.message || `${action} 操作成功!`, 'success');
+                    return true;
+                } else {
+                    throw new Error(data.message || '操作失败');
+                }
+            } catch (error) {
+                showToast(error.message, 'error');
+                return false;
+            }
+        };
+
+        switch(action) {
+            case 'rename':
+                result = await showDialog({ type: 'prompt', title: '重命名', message: `请输入新的名称:`, inputValue: name });
+                if (result) {
+                    if (await performFetch('index.php/Proxy/renameItem', { path, newName: result })) {
+                        await refreshFileBrowser(null, expandedPaths);
+                    }
+                }
+                break;
+            case 'delete':
+                try {
+                    await showDialog({ type: 'confirm', title: '确认删除', message: `确定要删除 "${name}" 吗？此操作不可恢复!` });
+                    if (await performFetch('index.php/Proxy/deleteItem', { path })) {
+                        expandedPaths.delete(path);
+                        await refreshFileBrowser(null, expandedPaths);
+                    }
+                } catch(e) { }
+                break;
+            case 'new-file':
+                result = await showDialog({ type: 'prompt', title: '新建文件', message: `在 "${name}" 中新建文件:`, inputValue: '', placeholder: '支持多级路径, 如 a/b/c.txt' });
+                if (result) {
+                    if (await performFetch('index.php/Proxy/createFile', { path, fileName: result, content: '' })) {
+                        expandedPaths.add(path);
+                        await refreshFileBrowser(null, expandedPaths);
+                    }
+                }
+                break;
+            case 'new-config':
+                result = await showDialog({ type: 'prompt', title: '新建配置', message: `请输入新配置文件名:`, inputValue: 'config.json', placeholder: '支持多级路径, 如 a/b/m.json' });
+                if (result) {
+                    if (await performFetch('index.php/Proxy/createFile', { path: '', fileName: result, content: emptyConfigContent })) {
+                        await refreshFileBrowser(null, expandedPaths);
+                    }
+                }
+                break;
+            case 'new-dir':
+                result = await showDialog({ type: 'prompt', title: '新建目录', message: `在 "${name}" 中新建目录:`, inputValue: '', placeholder: '支持多级路径, 如 a/b/c' });
+                if (result) {
+                    if (await performFetch('index.php/Proxy/createDirectory', { path, dirName: result })) {
+                        expandedPaths.add(path);
+                        await refreshFileBrowser(null, expandedPaths);
+                    }
+                }
+                break;
+            case 'upload':
+                uploadFileInput.setAttribute('data-expanded-paths', JSON.stringify([...expandedPaths]));
+                uploadFileInput.setAttribute('data-target-dir', path);
+                uploadFileInput.click();
+                break;
+        }
+    }
+
+    // uploadFileInput change 事件监听器
+    uploadFileInput.addEventListener('change', async (e) => {
+        const files = e.target.files;
+        const targetDir = e.target.getAttribute('data-target-dir');
+        // 从属性中恢复展开路径
+        const expandedPathsAttr = e.target.getAttribute('data-expanded-paths');
+        const expandedPaths = new Set(expandedPathsAttr ? JSON.parse(expandedPathsAttr) : []);
+
+        if (!files.length || !targetDir) return;
+
+        expandedPaths.add(targetDir); // 确保上传目录保持展开
+
+        const formData = new FormData();
+        formData.append('targetDir', targetDir);
+        for (const file of files) {
+            formData.append('files[]', file);
+        }
+
+        showToast(`正在上传 ${files.length} 个文件...`, 'info');
+        try {
+            const response = await fetch('index.php/Proxy/uploadFiles', { method: 'POST', body: formData });
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                await refreshFileBrowser(null, expandedPaths);
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            showToast(`上传失败: ${error.message}`, 'error');
+        } finally {
+            uploadFileInput.value = '';
+            uploadFileInput.removeAttribute('data-expanded-paths');
+        }
+    });
+
 
     /**
      * @description 为“新增爬虫规则”弹窗添加事件
