@@ -308,7 +308,7 @@ class ProxyController extends BaseController  {
         if (!empty($customContent)) {
             $finalContent = $customContent;
         } else {
-            $templatePath = ROOT_PATH . rtrim(C('TEMPLATE_PATH'), '/') . '/' . $apiName . '.json';
+            $templatePath = rtrim(ROOT_PATH, '/').'/'.ltrim(C('TEMPLATE_PATH'), './').$apiName.'.json';
             if (file_exists($templatePath)) {
                 $finalContent = file_get_contents($templatePath);
             } else {
@@ -326,7 +326,7 @@ class ProxyController extends BaseController  {
         }
 
         if ($saveAsDefault && !empty($customContent)) {
-            $defaultTemplatePath = ROOT_PATH . rtrim(C('TEMPLATE_PATH'), '/') . '/' . $apiName . '.json';
+            $defaultTemplatePath = rtrim(ROOT_PATH, '/').'/'.ltrim(C('TEMPLATE_PATH'), './').$apiName.'.json';
             $defaultTemplateDir = dirname($defaultTemplatePath);
             if (!is_dir($defaultTemplateDir)) {
                 mkdir($defaultTemplateDir, 0755, true);
@@ -470,7 +470,7 @@ class ProxyController extends BaseController  {
             return;
         }
 
-        $apiListFile = ROOT_PATH . rtrim(C('TEMPLATE_PATH'), '/') . '/api_list.json';
+    $apiListFile = rtrim(ROOT_PATH, '/').'/'.ltrim(C('TEMPLATE_PATH'), './').'api_list.json';
         $existingApis = [];
 
         if (file_exists($apiListFile)) {
