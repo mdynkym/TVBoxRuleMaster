@@ -61,6 +61,6 @@ return array(
      */
     'PASSWORD' => getenv('PASSWORD') !== false ? getenv('PASSWORD') : 'tvbox456',
     'NEED_LOGIN' => true,
-    'USE_SESSION' => false,
+    'USE_SESSION' => true,
     'PC_UA' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
 );
