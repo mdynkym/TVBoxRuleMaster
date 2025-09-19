@@ -1,0 +1,11 @@
+[phases.setup]
+# 安装 PHP 8.2 及常用扩展
+nixPkgs = [
+  "php82",
+  "php82Extensions.curl",
+  "php82Extensions.mbstring"
+]
+
+[start]
+# 启动 PHP 内置服务器，根目录就是当前目录
+cmd = "php -S 0.0.0.0:8000 -t ."

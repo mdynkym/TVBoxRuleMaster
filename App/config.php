@@ -25,14 +25,14 @@ return array(
      * 所有通过“下载”功能保存的规则和资源，以及在线编辑的文件，都将存放在此目录下。
      * 必须以 './' 开头，以 '/' 结尾。
      */
-    'DEFAULT_SAVE_PATH' => './box/',
+    'DEFAULT_SAVE_PATH' => './data/box/',
 
     /**
      * @var string 配置模板的存储位置
      * 用于存放 api_list.json 和新建规则时使用的模板文件。
      * 必须以 './' 开头，以 '/' 结尾。
      */
-    'TEMPLATE_PATH' => './Json/',
+    'TEMPLATE_PATH' => './data/Json/',
 
     /**
      * @var bool 是否开启代理缓存
@@ -47,7 +47,7 @@ return array(
      * 必须以 './' 开头，以 '/' 结尾。
      * 注意：如果开启了代理缓存，必须确保此目录可写。
      */
-    'PROXY_CACHE_PATH' => './cache/',
+    'PROXY_CACHE_PATH' => './data/cache/',
 
     /**
      * @var string 代理缓存过期时间
@@ -59,8 +59,8 @@ return array(
     /**
      * 其他应用配置
      */
-    'PASSWORD' => 'tvbox',
-    'NEED_LOGIN' => false,
+    'PASSWORD' => getenv('PASSWORD') !== false ? getenv('PASSWORD') : 'tvbox456',
+    'NEED_LOGIN' => true,
     'USE_SESSION' => false,
     'PC_UA' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
 );
